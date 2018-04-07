@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
 	--main-gray: #dddddd;
+	--pale-black: #202020;
 	--footer-height: 2.8rem;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
@@ -29,7 +30,7 @@ body {
 	text-align: center;
 	background-color: black;
 	color: var(--main-gray);
-	padding-bottom: 0.5em;
+	padding-bottom: 1.5em;
 	margin-bottom: 0.1em;
 }
 .page_header .title {
@@ -49,7 +50,7 @@ nav ul {
 nav li { display: inline-block; }
 nav li a {
 	display: inline-block; padding: 1em 2em;
-	border-right: thin solid rgba(255,255,255,0.2);
+	border-right: thin solid var(--pale-black);
 	color: var(--main-gray);
 	text-decoration: none;
 }
@@ -58,6 +59,7 @@ nav .currently_opened {
 	font-weight: bold;
 	pointer-events: none;
 	cursor: default;
+	background-color: var(--pale-black);
 }
 
 main {
