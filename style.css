@@ -3,7 +3,7 @@
 	--main-gray: #dddddd;
 	--footer-height: 2.8rem;
 	font-family: 'Roboto Slab', sans-serif;
-	/*font-size: set explicitly*/
+	font-size: 16px; /* let's set explicitly */
 }
 body {
 	margin: 0;
@@ -64,7 +64,14 @@ main {
 	padding-top: 1em;
 	padding-bottom: var(--footer-height);
 }
-main header { font-weight: 700; }
+main header {
+	font-weight: 700;
+	margin-top: 1.5em; margin-bottom: 0.5em;
+}
+main :first-child header { margin-top: 0em;}
+main p, main section>ul, main section>ol {
+	margin-top: 0.5em; margin-bottom: 0.5em;
+}
 main a { color: #777777; }
 
 footer {
