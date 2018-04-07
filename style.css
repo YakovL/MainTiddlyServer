@@ -62,13 +62,13 @@ nav .currently_opened {
 
 main {
 	padding-top: 1em;
-	padding-bottom: var(--footer-height);
+	padding-bottom: calc(var(--footer-height) + 1em);
 }
 main header {
 	font-weight: 700;
 	margin-top: 1.5em; margin-bottom: 0.5em;
 }
-main :first-child header { margin-top: 0em;}
+main :first-child header { margin-top: 0em; }
 main p, main section>ul, main section>ol {
 	margin-top: 0.5em; margin-bottom: 0.5em;
 }
