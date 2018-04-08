@@ -34,29 +34,28 @@ body {
 	padding-bottom: 1.5em;
 	margin-bottom: 0.1em;
 }
-.page_header .title {
+.page_header__title {
 	padding: 0.25em 0 0.3em;
 	font-size: 2rem;
 	font-weight: 700;
 }
-.page_header .subtitle {
+.page_header__subtitle {
 	padding: 0.5em 0;
 }
 
-nav { display: block; }
-nav ul {
+.navigation {
 	padding: 0; margin: 0;
 	background-color: black;
+	color: var(--main-gray);
 }
-nav li { display: inline-block; }
-nav li a {
+.navigation__link {
 	display: inline-block; padding: 1em 2em;
 	border-right: thin solid var(--pale-black);
-	color: var(--main-gray);
 	text-decoration: none;
+	color: inherit;
 }
-nav li a:hover { color: white; }
-nav .currently_opened {
+.navigation__link:hover { color: white; }
+.navigation__link_currently-opened {
 	font-weight: bold;
 	pointer-events: none;
 	cursor: default;
@@ -72,11 +71,11 @@ main header {
 	font-size: 1.25em;
 	margin-top: 1.0em; margin-bottom: 0.3em;
 }
-ul, ol { padding-left: 1.6em; }
 main :first-child header { margin-top: 0em; }
 main p, main section>ul, main section>ol {
 	margin-top: 0.2em; margin-bottom: 0.2em;
 }
+main ul, main ol { padding-left: 1.6em; }
 main a { color: #777777; }
 
 footer {
