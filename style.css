@@ -1,24 +1,26 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
 	--main-gray: #dddddd;
-	--pale-black: #202020;
-	--footer-height: 2.8rem;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
 }
 body {
 	margin: 0;
+	margin-left: calc(100vw - 100%); /* fixes the scrollbar jumping issue, see https://stackoverflow.com/q/6357870/3995261 */
 	background-color: #777777;
 }
 .wrapper {
 	background-color: var(--main-gray);
-	/* horizontal align center */
+
 	width: 40em;
 	max-width: 100%;
-	margin: 0 auto; /* fix the scrollbar jumping issue, see https://stackoverflow.com/q/6357870/3995261 */
-	/* footer should be attached to the bottom if the content is not long enough */
+	/* horizontal align center */
+	margin: 0 auto;
+
+	/* stick footer to the bottom if the content is not long enough (see margin-top: auto) */
 	min-height: 100vh;
-	position: relative;
+	display: flex;
+	flex-direction: column;
 }
 .page_header, main, footer {
 	padding-left: 1rem;
@@ -45,12 +47,12 @@ body {
 
 .navigation {
 	padding: 0; margin: 0;
+	text-align: center;
 	background-color: black;
 	color: var(--main-gray);
 }
 .navigation__link {
 	display: inline-block; padding: 1em 2em;
-	border-right: thin solid var(--pale-black);
 	text-decoration: none;
 	color: inherit;
 }
@@ -59,12 +61,13 @@ body {
 	font-weight: bold;
 	pointer-events: none;
 	cursor: default;
-	background-color: var(--pale-black);
+	background-color: #202020;
 }
 
 main {
 	padding-top: 1em;
-	padding-bottom: calc(var(--footer-height) + 1em);
+	padding-bottom: 1em;
+	/*flex: 1 0 auto; /* growable non-shinkable: make footer stick to bottom */
 }
 main header {
 	font-weight: 700;
@@ -85,11 +88,9 @@ footer {
 	text-align: center;
 	font-size: 0.8rem;
 	
+	margin-top: auto; /* https://stackoverflow.com/a/47640893/3995261 */
 	width: 100%;
-	height: var(--footer-height);
 	box-sizing: border-box;
 	padding-top: 1em;
 	padding-bottom: 1em;
-	position: absolute;
-	bottom: 0;
 }
