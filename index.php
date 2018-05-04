@@ -492,6 +492,7 @@ function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 function getListOfTwLikeHtmls() {
 
 	global $workingFolder;
+	$htmls = [];
 	$files_and_folders = scandir($workingFolder); // files' and folders' names in current directory
 	foreach ($files_and_folders as $i => $f) {
 		$full_path = $workingFolder . "/" . $f;
