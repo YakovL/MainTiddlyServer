@@ -21,11 +21,11 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - minimize pages and clicks (showTW: remove extra page..)
 	 - improve description of memory_limit in ?options + comment source better /.oO can we increase automatically?
 	 - tell user password protection won't work when it is so
+	 - when saving options/changes fails, notify, don't fail silently (file_put_contents does so)
 	- improve interface for the case of no TWs in the workingFolder (both ?options and ?wikis)
 	- add settings: server title (instead of MainTiddlyServer), color scheme (2-3-4 colors)
 	- make interface look close to that of MTS site: navbar with ?wikis, ?config, ?usage?, ?about (put version history of changes there)
 	 - hightlight the current page in navbar
-	 . 'no ?...' should open ?options
 	 * make the interfaces be really shared between MTS and its site (how to?)
 	- add docs and history of MTS changes as html served by MTS itself (showDocPage)
 	
