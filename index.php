@@ -17,10 +17,11 @@ then open the address of this script in a web browser.
 You will then be asked to perform some initial configuration, after which you can save your wiki file on your website.
 
 	to do:
-	! collect user scenarios to design interfaces, make them simple and straight-forward
+	! collect user scenarios (+), design interfaces, make them simple and straight-forward
+	 - minimize pages and clicks (showTW: remove extra page..)
 	 - improve description of memory_limit in ?options + comment source better /.oO can we increase automatically?
 	 - tell user password protection won't work when it is so
-	 ? redirect from 'no ?...' to '?wiki=...' if the wiki is set (chosen)?
+	- improve interface for the case of no TWs in the workingFolder (both ?options and ?wikis)
 	- add settings: server title (instead of MainTiddlyServer), color scheme (2-3-4 colors)
 	- make interface look close to that of MTS site: navbar with ?wikis, ?config, ?usage?, ?about (put version history of changes there)
 	 - hightlight the current page in navbar
@@ -95,6 +96,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ change: now request to MTS without ?.. opens options page if those are not set and wikis otherwise,
+	  removed unnecessary "bookmark this" links
+	1.6.0
 	+ introduced simple proxy to enable including TWs from TWs served through MTS and to request stuff from web
 	  to even overcome CORS! (request to CORS-enabled sites are already available from localhost, though)
 	  httpReq is hijacked by the injected JS so that it makes requests to MTS and it proxies those
@@ -593,9 +597,8 @@ function showOptionsPage(){
 		}
 	</script>';
 	
-	$output .= "<p>To access this options page later, bookmark <a href='$optionsLink'>$optionsLink</a></p>" .
-			  '<form name="input" action="?options" method="post">' .
-				'<input type="hidden" name="options">';
+	$output .= '<form name="input" action="?options" method="post">' .
+				 '<input type="hidden" name="options">';
 	
 	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
 	/*$folders = $options['dataFolders'];
@@ -663,6 +666,7 @@ function showWikisList(){
 	 '<ul class="wikis-list__list">';
 	 $htmls = getListOfTwLikeHtmls();
 	 foreach ($htmls as $i => $f)
+		//# add helper to build ?wiki=.. links (escaping +, adding working folder etc), .oO routing
 		$output .= '<li><a href="' . $baselink . '?wiki=' . str_replace('+','%2B',$f) . "\">$f</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
@@ -1024,8 +1028,9 @@ AuthUserFile "' . getcwd() . '/.htpasswd"';
 		}
 	}
 
-	$output .= "<p>To access this options page later, bookmark <a href='$optionsLink'>$optionsLink</a></p>";
-	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$baselink'>$baselink</a></p>";
+	//# add helper to build ?wiki=.. links (escaping +, adding working folder etc), .oO routing
+	$wikiLink = $baselink . '?wiki=' . str_replace('+','%2B',$options['wikiname']);
+	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$wikiLink'>$wikiLink</a></p>";
 	showMtsPage($output);
 }
 else if (isset($_GET['options'])) {
@@ -1232,8 +1237,8 @@ else if (isset($_GET['proxy_to']))
 	file_put_contents('test_proxy.txt',$test_message);
 	// */
 }
-else if (isset($_GET['wikis']))
-{
+else if (isset($_GET['wikis'])) {
+
 	// show a page with links to all the wikis in the folder
 	showWikisList();
 }
@@ -1247,7 +1252,10 @@ else if (isset($_GET['wiki'])) {
 	}
 	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
 } else {
-	showTW();
+	if($options['wikiname'])
+		showWikisList();
+	else
+		showOptionsPage();
 	
 //$data = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABoklEQVRIie1WsW7CQAy9L6FfwE90QGyVGLLB0gGmTlElYOkSZWBhyhQx3wjKAh1IByBSoNF1uSXfAtfBlbmcE5QE2qHCypKX3HvPsa2YhSKOpFBXRyhiCr5/7phSyuW+5dhXykRSuNzXES/g892awY3L/Ua3lSvjBdw4WYRbjo2IF/DH1+fj8cjwMWgYMl7AAaTuKB5JAQg8ne/WSilGz7THg+V+Y6gOZ9PT6UTdGLjl2ICD/bMAsAO1fgC4DJYLOCSB9n8EvIDnUmNUwi3HRvtKKfbxtb9AXSMiKdC+0mtgBGRa/iri+UMBo6/psWa/k0sHeBFPpov0vq4nQHkyk6z3dT0BypOZZL2va38igydTZL1ZgajZ7+D1oJWU4kU8/6lNf13gPgcFPPc5qNBFSSrxV3yTSFK5OmzPAr3JqD0e3OTXlqSyNxlBJRhCkClNovxehNQ5XQRoo9sykii/FyF1I7vLMLQ/nE2hi/Ukyu9FoYif3l6oGwb28T2X+0YSlfYilDlPcpJK6s6oRNV9CWRAg60OW/reQltsakco4uV+8w0KliK3g6WazQAAAABJRU5ErkJggg==';
 // keep in mind: http://stackoverflow.com/questions/16566460/png-image-being-cropped-when-saved-from-base64-decode
