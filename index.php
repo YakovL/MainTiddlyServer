@@ -576,7 +576,7 @@ function showMtsPage($html,$title = '') {
 	echo   '<a class="navigation__link" href="'. $optionsLink .'">options</a>';
 	echo '</nav>';
 	echo '<main>'. $html .'</main>';
-	echo '<footer><a href="https://yakovl.github.io/MainTiddlyServer/" target="_blank">MainTiddlyServer</a></footer>';
+	echo '<footer><a href="https://yakovl.github.io/MainTiddlyServer/" target="_blank">MainTiddlyServer v'.$version.'</a></footer>';
 	echo '</div></body></html>';
 }
 function showOptionsPage(){
