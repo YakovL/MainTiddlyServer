@@ -69,8 +69,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	  prevent saving/loading chkHttpReadOnly cookie (probably inject into setOption: 'if(name == "chkHttpReadOnly") return')
 	- remake core overwriting: change window.saveFile, not (only) saveChanges,
 	  security: start with allowing only saving TWs in the . folder (currently supported request) and backups
-	- test added support of TW 2.6.5
-	* test and add support of less recent versions of TW (build autotests)
+	* test and add support of TW below 2.6.5 (build autotests)
 	* extend isTwLike to recognize PureStore
 	* test with IE: is encoding of non-latin letters broken? (change the convertUnicodeToFileFormat patch accordingly)
 	* reduce async implementation of asyncLoadOriginal, updateAndSendMain via httpReq
@@ -478,6 +477,8 @@ function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 function isInWokringFolder($file_name_in_current_workingFolder) { // file or folder
 	
 	global $workingFolder;
+	if(!is_dir($workingFolder)) // workingFolder may be unavailable
+		return false;
 	$files_and_folders = scandir($workingFolder); // files' and folders' names in current directory
 	return in_array($file_name_in_current_workingFolder, $files_and_folders);
 }
@@ -505,10 +506,11 @@ function getListOfTwLikeHtmls() {
 	}
 	return $htmls;
 };
-function showMtsPage($html,$title = '') {
+function showMtsPage($html,$title = '',$httpStatus = 200) {
 	
 	global $optionsLink, $wikisLink, $version;
 	
+	http_response_code($httpStatus);
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
 	echo '<!DOCTYPE html><html><head>';
 	echo	'<meta charset="UTF-8" />';
@@ -719,11 +721,11 @@ function showTW($full_path = '') {
 	// if there's no such file, show that
 	if (!file_exists($wikiPath) || !is_file($wikiPath)) {
 	
-		if (!$wikiname || !$workingFolder)
+		if (!$wikiname || !$workingFolder) //# check is_dir as well?
 			return showOptionsPage();
 
 		showMtsPage("Error: $wikiPath does not exist or is not a file<br>" .
-			"Select a wiki file at <a href='$optionsLink'>$optionsLink</a>");
+			"Select a wiki file at <a href='$optionsLink'>$optionsLink</a>",'',404);
 		return false;
 	}
 	$wikiData = file_get_contents($wikiPath);
@@ -1245,9 +1247,14 @@ else if (isset($_GET['wikis'])) {
 // open a wiki by url in request
 else if (isset($_GET['wiki'])) {
 
+	if(!is_dir($workingFolder)) {
+		showMtsPage("<p>The server working folder is currently unavailable...</p>",'',404);
+		//# make more helpful (what working folder is used? show at least ~name.. what to do?)
+		return;
+	}
 	if(!isTwInWorkingFolder($_GET['wiki'])) {
 		showMtsPage("<p>" . $_GET['wiki'] . " isn't a TiddlyWiki of supported version in the server working folder.</p>"
-		   . "<p>Please visit <a href=\"?wikis\">the list of wikis</a> to pick an existing one.</p>");
+		   . "<p>Please visit <a href=\"?wikis\">the list of wikis</a> to pick an existing one.</p>",'',404);
 		return;
 	}
 	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
