@@ -1,6 +1,7 @@
 <?php
 // MainTiddlyServer
 $version = '1.6.0';
+$debug_mode = false;
 
 // "no cache" headers to always get up-to-date TW content (not loaded from cache)
 // especially important on Adroid, since aggressive task killer unloads browsers from RAM quite often
@@ -28,6 +29,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - hightlight the current page in navbar
 	 * make the interfaces be really shared between MTS and its site (how to?)
 	- add docs and history of MTS changes as html served by MTS itself (showDocPage)
+
+	- try http://www.clickteam.com/install-creator-2 for simplifying the installation process on Windows (look for alternatives, too: https://alternativeto.net/software/clickteam-install-creator/)
+	- learn how installation can be simplified for Unix-like OSes
 	
 	- go on implementing working with other folders (see after $workingFolder)
 	 - process in $_POST['options'] section the choice of the workingFolder in the options interface
@@ -50,9 +54,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	.oO updating MTS from a repo (security is paramount!)
 	
-	* add logging of errors for the POST requests (and all requests themselves?)
-	! add conflict checks to reading/writing TW to prevent data corruption
-	 ? does it take place for big TWs?
 	- implement image uploading (in MTS + TW)
 	 - improve security, error handling 
 	  - make sure we got an image, without injected code (or resave it to ~sanitize)
@@ -63,8 +64,18 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - add front-end part, inject into TW ..may be useful: https://codepen.io/anon/pen/mpKaJe?editors=1010
 	 - start with uploading favicon (.ico, .png); .oO about security for uploading arbitrary
 	 . big goal: create a paste-place for all sorts of files and materials via TW + MTS
+	
+	- review debug dumps/logging, now controlled by $debug_mode:
+	 ? what user may need, what's needed for maintaining (and whether some parts should be switched on/off separately),
+	   what should be removed/substituted by autotests; add configuring and review through an interface
+	 - remove conflicting dumps to test_store_area_locating.txt
+	 * see https://www.loggly.com/ultimate-guide/php-logging-basics/ and http://www.phptherightway.com/ #errors_and_exceptions and #testing
+	 * add logging of errors for the POST requests (and all requests themselves? use for sync editing?)
+	! add conflict checks to reading/writing TW to prevent data corruption
+	 ? does it take place for big TWs?
 	- implement real-time updating of content (on the front-end) when used by multiple users
 	- test compression by Apache or PHP (see https://stackoverflow.com/q/1862641/) in showTW (online and offline)
+	 ! extracting js and css to separate "files" so that they get cached may be much more effective
 	- retest readOnly with opening both MTS and html in the same folder,
 	  prevent saving/loading chkHttpReadOnly cookie (probably inject into setOption: 'if(name == "chkHttpReadOnly") return')
 	- remake core overwriting: change window.saveFile, not (only) saveChanges,
@@ -83,7 +94,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - add an option to protect only the .php, options and .ht files with password (see TW for details)
 	! try to find an external lib to avoid using .htaccess/apache
 	  like may be https://github.com/delight-im/PHP-Auth
-	 . to make password protection work on Windows, Android
+	 . to make password protection work on Windows, Android, via Apache 2.2.18 and above
 	  ? there's no support of htaccess/Apache implementation on Android, right?
 	 . crypt is a unix-only solution, non-reliable
 	  * support password-protection for Apache 2.2.18 and above, see https://stackoverflow.com/q/41078702/
@@ -95,8 +106,10 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ made 'unavailable' error pages respond with 404 (fix an issue with removable storages)
 	+ change: now request to MTS without ?.. opens options page if those are not set and wikis otherwise,
 	  removed unnecessary "bookmark this" links
+	+ added hardcoded $debug_mode flag for further improvement of ~debug logging
 	1.6.0
 	+ introduced simple proxy to enable including TWs from TWs served through MTS and to request stuff from web
 	  to even overcome CORS! (request to CORS-enabled sites are already available from localhost, though)
@@ -766,9 +779,11 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 
 	// get wiki content
 	$wikiText = file_get_contents($wikiPath);
-//$memoryUsageBeforeUpdate = memory_get_usage();
-//$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
-//file_put_contents('test_incremental_saving__was.txt',$wikiText);
+	if($debug_mode) {
+		$memoryUsageBeforeUpdate = memory_get_usage();
+		$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
+		file_put_contents('test_incremental_saving__was.txt',$wikiText);
+	}
 	
 	// split html into parts before store, store itself and after store (using DOMDocument fails with TWc, see test_dom.php)
 	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>\n?/'; //<div id="storeArea">\n
@@ -783,7 +798,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	$afterStorePart  = substr($wikiText,$posClosingDiv);
 	//^ second considerable load and peak rise in memory usage
 	unset($wikiText); // no longer needed, spare memory
-//# if $beforeStorePart or $afterStorePart is empty, return a error message
+//# if $beforeStorePart or $afterStorePart is empty, return an error message
 	
 	// extract tiddlers into $tiddlersMap (divs inside #storeArea, see updateOriginal)
 	$re_stored_tiddler = '#<div [^>]+>\s*<pre>[^<]*?</pre>\s*</div>#';
@@ -802,10 +817,14 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	}
 	unset($tiddlersArray); // PHP is smart enough not to use additional memory for the new map
 	// but when we unset $tiddlersMap to spare memory that only works if we get rid of $tiddlersArray too
-//file_put_contents('test_store_area_locating.txt','$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap,true));
+	if($debug_mode) {
+		file_put_contents('test_store_area_locating.txt','$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap,true));
+	}
 	
 	// apply tiddler changes
-//file_put_contents('test_changes_parsing.txt',print_r($changes,true));
+	if($debug_mode) {
+		file_put_contents('test_changes_parsing.txt',print_r($changes,true));
+	}
 	foreach($changes->tiddlers as $tiddlerTitle => $tiddlerChange) {
 		if($tiddlerChange == "deleted") {
 			unset($tiddlersMap[$tiddlerTitle]);
@@ -821,7 +840,9 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 			// if implemented, will improve traffic usage and "gittability" (renamed tiddlers won't be shifted to the end)
 		}
 	}
-//file_put_contents('test_store_area_locating.txt',print_r($tiddlersMap,true));
+	if($debug_mode) {
+		file_put_contents('test_store_area_locating.txt',print_r($tiddlersMap,true));
+	}
 	// pack updated tiddlers back into DOM + clear memory from the tiddlersMap
 	$updatedStorePart = implode("\n",(array) $tiddlersMap); //works without type change part: (array)
 	unset($tiddlersMap); // no longer needed, spare memory
@@ -844,20 +865,27 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 				$beforeStorePart = preg_replace($blockPattern,$substitute,$beforeStorePart);
 		}
 
-//$memoryUsageMiddleOfUpdate = memory_get_usage();
-//$memoryPeakUsageMiddleOfUpdate = memory_get_peak_usage();
+	if($debug_mode) {
+		$memoryUsageMiddleOfUpdate = memory_get_usage();
+		$memoryPeakUsageMiddleOfUpdate = memory_get_peak_usage();
+	}
 	// concatenate in an optimized manner (see https://stackoverflow.com/q/47947868/):
 	$wikiText = "{$beforeStorePart}{$updatedStorePart}{$afterStorePart}";
 // actually, we don't even need to concatenate these: we can use fwrite() and save those one-by one
-//file_put_contents('test_incremental_saving__became.txt',$wikiText);
+	if($debug_mode) {
+		file_put_contents('test_incremental_saving__became.txt',$wikiText);
+		
+		$memoryUsageAfterUpdate = memory_get_peak_usage();
+
+		file_put_contents('test_memory_usage.txt',
+			  "before update: ".$memoryUsageBeforeUpdate.
+			"\npeak before: ".$memoryPeakUsageBeforeUpdate.
+			"\nin process: ".$memoryUsageMiddleOfUpdate.
+			"\npeak in process: ".$memoryPeakUsageMiddleOfUpdate.
+			"\nafter: ".$memoryUsageAfterUpdate);
+	}
 	
-/*$memoryUsageAfterUpdate = memory_get_peak_usage();
-file_put_contents('memory_usage.txt',"before update: ".$memoryUsageBeforeUpdate
-									."\npeak before:".$memoryPeakUsageBeforeUpdate
-									."\nin process: ".$memoryUsageMiddleOfUpdate
-									."\npeak in process: ".$memoryPeakUsageMiddleOfUpdate
-									."\nafter: ".$memoryUsageAfterUpdate);
-*/	// save changed wiki
+	// save changed wiki
 	file_put_contents($wikiPath,$wikiText);
 	//# return errors if any
 	return 0;
@@ -932,8 +960,8 @@ else
 
 // calc interface links
 $port = $_SERVER['SERVER_PORT'];
-$port = $port ? (":".$port) : "";
-$baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $port . $_SERVER['SCRIPT_NAME'];
+$portSuffix = $port ? (":".$port) : "";
+$baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 
@@ -1173,18 +1201,22 @@ else if (isset($_GET['proxy_to']))
 	} //# else? (same domain but "extended relative path")
 	
 	// glue $requestUrl back from parts
-	$initiallyRequestedPath = $requestedUrlParts['path']; // for debugging
+	if($debug_mode) {
+		$initiallyRequestedPath = $requestedUrlParts['path'];
 //# log $initiallyRequestedPath
+	}
 	$requestedUrlParts['path'] = $requestedFolderAndFile['folder'] . $requestedFolderAndFile['file'];
 	// glue requested url parts back
-	$initialRequestedUrl = $requestedUrl; // for debugging
+	if($debug_mode) {
+		$initialRequestedUrl = $requestedUrl;
+	}
 	$requestedUrl = $requestedUrlParts['scheme'].'://'. $requestedUrlParts['host'].
 		($requestedUrlParts['port'] ? (':'.$requestedUrlParts['port']) : '').
 		$requestedUrlParts['path']. ($requestedUrlParts['query'] ? ('?'.$requestedUrlParts['query']) : '');
 	 //# what if scheme is not defined? use user, pass if defined; fragment (hash) is probably not needed
 	 //# better to use some tested methods (http_build_url from PECL>=0.21.0?) – may be copy implementation
 	
-	//# pass the rest, get response, send back
+	// pass the rest, get response, send back
 	if($doProxy) {
 		$curl_session = curl_init($requestedUrl);
 		// return results by curl_exec to $proxiedRequestResponse instead of printing
@@ -1206,38 +1238,38 @@ else if (isset($_GET['proxy_to']))
 	}
 	
 	// print debug info
-	 /*
-	$test_message  = '';
-	$test_message .= 'request url is ' . $requestUrl . "\n";
-	$test_message .= 'MTS host is ' . $mtsHost . "\n";
-	$test_message .= 'MTS port is ' . $mtsPort . "\n";
-	$test_message .= 'requestPathAndQuery is ' . print_r($requestPathAndQuery,true) . "\n";
-	$test_message .= 'MTS path is ' . $mtsPath . "\n";
-	$test_message .= 'MTS folder and file are ' . print_r($mtsFolderAndFile,true) . "\n";
-	$test_message .= 'mts folder url is ' . $mtsFolderUrl . "\n";
-	// $mtsFile
-	$test_message .= "request body is\n\n" . $request_body . "\n\n";
+	if($debug_mode) {
+		$test_message  = '';
+		$test_message .= 'request url is ' . $requestUrl . "\n";
+		$test_message .= 'MTS host is ' . $mtsHost . "\n";
+		$test_message .= 'MTS port is ' . $mtsPort . "\n";
+		$test_message .= 'requestPathAndQuery is ' . print_r($requestPathAndQuery,true) . "\n";
+		$test_message .= 'MTS path is ' . $mtsPath . "\n";
+		$test_message .= 'MTS folder and file are ' . print_r($mtsFolderAndFile,true) . "\n";
+		$test_message .= 'mts folder url is ' . $mtsFolderUrl . "\n";
+		// $mtsFile
+		$test_message .= "request body is\n\n" . $request_body . "\n\n";
 
-	$test_message .= 'undecoded? initially requested url is ' . $initialRequestedUrl . "\n";
-	$test_message .= 'initial request query is ' . $initialRequestQuery . "\n";
-	$test_message .= 'requestedUrlParts are ' . print_r($requestedUrlParts,true) . "\n";
-	$test_message .= 'initially requested file is ' . $initiallyRequestedFile . " (decoded: ".$requestedFileDecodedName.")\n";
-	$test_message .= 'requested with resolved . , .. except for _: ' . $requestedFolderResolved . "\n";
-	$test_message .= 'requestedFolderAndFile are ' . print_r($requestedFolderAndFile,true) . "\n";
-	$test_message .= 'undecoded? processed requested url is ' . $requestedUrl . "\n";
+		$test_message .= 'undecoded? initially requested url is ' . $initialRequestedUrl . "\n";
+		$test_message .= 'initial request query is ' . $initialRequestQuery . "\n";
+		$test_message .= 'requestedUrlParts are ' . print_r($requestedUrlParts,true) . "\n";
+		$test_message .= 'initially requested file is ' . $initiallyRequestedFile . " (decoded: ".$requestedFileDecodedName.")\n";
+		$test_message .= 'requested with resolved . , .. except for _: ' . $requestedFolderResolved . "\n";
+		$test_message .= 'requestedFolderAndFile are ' . print_r($requestedFolderAndFile,true) . "\n";
+		$test_message .= 'undecoded? processed requested url is ' . $requestedUrl . "\n";
 
-	$test_message .= 'same domain: '. $isSameDomain . "\n";
-	$test_message .= 'same folder: '. $isSameFolder . "\n";
-	$test_message .= 'subfolder: '  . $isSubfolder  . "\n";
-	$test_message .= '$isRelativePath is '. $isRelativePath ."\n";
-	$test_message .= '$isRelativeAddress is '. $isRelativeAddress ."\n";
-	$test_message .= 'all request params: ' . $request . "\n";
+		$test_message .= 'same domain: '. $isSameDomain . "\n";
+		$test_message .= 'same folder: '. $isSameFolder . "\n";
+		$test_message .= 'subfolder: '  . $isSubfolder  . "\n";
+		$test_message .= '$isRelativePath is '. $isRelativePath ."\n";
+		$test_message .= '$isRelativeAddress is '. $isRelativeAddress ."\n";
+		$test_message .= 'all request params: ' . $request . "\n";
 
-	$test_message .= "\n\n" . 'request error: ' . $request_error . "\n";
-	$test_message .= "response:\n\n" . $proxiedRequestResponse . "\n";
-	//$test_message .= '$_SERVER: ' . print_r($_SERVER,true);
-	file_put_contents('test_proxy.txt',$test_message);
-	// */
+		$test_message .= "\n\n" . 'request error: ' . $request_error . "\n";
+		$test_message .= "response:\n\n" . $proxiedRequestResponse . "\n";
+		//$test_message .= '$_SERVER: ' . print_r($_SERVER,true);
+		file_put_contents('test_proxy.txt',$test_message);		
+	}
 }
 else if (isset($_GET['wikis'])) {
 
