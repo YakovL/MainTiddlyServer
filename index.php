@@ -1,6 +1,7 @@
 <?php
 // MainTiddlyServer
 $version = '1.6.0';
+// MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.txt)
 $debug_mode = false;
 
 // "no cache" headers to always get up-to-date TW content (not loaded from cache)
