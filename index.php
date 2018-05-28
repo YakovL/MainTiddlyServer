@@ -111,6 +111,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ change: now request to MTS without ?.. opens options page if those are not set and wikis otherwise,
 	  removed unnecessary "bookmark this" links
 	+ added hardcoded $debug_mode flag for further improvement of ~debug logging
+	+ fixed: global $baselink missing in showWikisList (causes errors in elder versions of php)
 	1.6.0
 	+ introduced simple proxy to enable including TWs from TWs served through MTS and to request stuff from web
 	  to even overcome CORS! (request to CORS-enabled sites are already available from localhost, though)
@@ -662,6 +663,8 @@ function showOptionsPage(){
 	showMtsPage($output,"Options");
 }
 function showWikisList(){
+	
+	global $baselink;
 	
 	// for screens large enough (in fact, for devices with keyboard),
 	// visualize selection and allow navigation via keyboard
