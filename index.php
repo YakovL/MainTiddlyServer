@@ -1114,7 +1114,7 @@ else if (isset($_GET['proxy_to']))
 	}
 
 	// parse mts url (request url)
-	$mtsHost = $_SERVER['HTTP_HOST'];
+	$mtsHost = $_SERVER['SERVER_NAME']; // HTTP_HOST contains port as well when used on Android, more details at https://stackoverflow.com/a/2297421/
 	$mtsPort = $_SERVER['SERVER_PORT'];
 	$requestPathAndQuery = parse_url($_SERVER['REQUEST_URI']);
 	$mtsPath = $requestPathAndQuery['path'];
