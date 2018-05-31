@@ -1077,7 +1077,7 @@ else if (isset($_GET['proxy_to']))
 
 	// a helper to split full path into folder + file parts
 	function getFolderAndFileNameFromPath($urlFullPath){
-		$folderAndFileRegExp = '#^(.+/)([^/]*)$#';
+		$folderAndFileRegExp = '#^(.*/)([^/]*)$#';
 		preg_match($folderAndFileRegExp,$urlFullPath,$match);
 		return array(
 			'folder' => $match ? $match[1] : '',
