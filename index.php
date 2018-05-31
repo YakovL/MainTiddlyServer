@@ -112,6 +112,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	  removed unnecessary "bookmark this" links
 	+ added hardcoded $debug_mode flag for further improvement of ~debug logging
 	+ fixed: global $baselink missing in showWikisList (causes errors in elder versions of php)
+	+ fixed path processing of the proxy (broke including in some cases)
 	1.6.0
 	+ introduced simple proxy to enable including TWs from TWs served through MTS and to request stuff from web
 	  to even overcome CORS! (request to CORS-enabled sites are already available from localhost, though)
