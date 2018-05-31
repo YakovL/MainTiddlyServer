@@ -393,7 +393,7 @@ function implementRequestProxying() {
 		// just add request_url to the request body and send to MTS
 //# what if its type was not application/x-www-form-urlencoded ?
 		url = proxy_url;
-		while(arguments.length < 6) // data is the 6th argument and may be omitted
+		while(arguments.length < 6) // data is the 6th argument and may have been omitted
 			[].push.call(arguments,undefined);
 		arguments[5] = data ? (proxy_content + "&" + data) : proxy_content;
 		return window.config.orig_noProxy_httpReq.apply(this,arguments);
