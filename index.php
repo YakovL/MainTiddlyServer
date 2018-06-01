@@ -113,6 +113,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ added hardcoded $debug_mode flag for further improvement of ~debug logging
 	+ fixed: global $baselink missing in showWikisList (causes errors in elder versions of php)
 	+ fixed path processing of the proxy (broke including in some cases)
+	+ secure data in case server/TW wasn't available during asyncLoadOriginal but was available afterwards during saving (and other cases)
 	1.6.0
 	+ introduced simple proxy to enable including TWs from TWs served through MTS and to request stuff from web
 	  to even overcome CORS! (request to CORS-enabled sites are already available from localhost, though)
@@ -197,6 +198,8 @@ function updateAndSendMain(original,onSuccess) //rather current HTML than origin
 	var storePosition = locateStoreArea(original);
 	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
 	var newStore = updateOriginal(original,storePosition,localPath); // new html
+	if(!newStore)
+		return; // don`t notify: updateOriginal alerts already
 	
 	var currentPageRequestMatch = (/\?(?:[^&].+)*?(wiki=[^&]+)(&|$)/mg).exec(window.location.search);
 	var currentPageRequest = currentPageRequestMatch ? currentPageRequestMatch[1] : "";
