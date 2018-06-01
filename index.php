@@ -41,9 +41,14 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - allow including from other dataFolders (next: by w.f.'s aliases /implemented: by relative address)
 	 - next: allow choosing workingFolder in interface, visit subfolders (for microrepos), ..
 
+	- allow to switch off proxying until all requests are processed properly
 	- either proxy non-GET requests (use $_REQUEST instead?) or limit httpReq hijacking to GET requests
 	- pass _any_ request that is not processed directly, through proxy (now those to the same domain won't work)
 	- gather proxy implementation issues, test stuff
+	 - add checks if getFolderAndFileNameFromPath returned empty folder (for instance, including from http://site.com – with no path at all, like http://site.com/TW.html → http://site.com?wiki=otherTW.thml)
+	 * calc $mtsHost in a more reliable way: get rid of port manually: https://stackoverflow.com/a/8909559
+	   (wrong values like containing :port can cause MTS infinite loops because of proxying)
+	 * go through the proxy_to code and analyse its algorithm for custom ports
 	
 	- test opportunities of sending requests to web from localhost/proxy:
 	 - .oO and try including from other devices
