@@ -94,3 +94,8 @@ footer {
 	padding-top: 1em;
 	padding-bottom: 1em;
 }
+
+::selection {
+	background: #bbbbbb;
+}
+/* scrollbars and parts of browser interface are also grey */
