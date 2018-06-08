@@ -30,6 +30,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - hightlight the current page in navbar
 	 * make the interfaces be really shared between MTS and its site (how to?)
 	- add docs and history of MTS changes as html served by MTS itself (showDocPage)
+	.oO improve typographics/layout (same as on the site? commons css?), including color scheme (different one?)
 
 	- try http://www.clickteam.com/install-creator-2 for simplifying the installation process on Windows (look for alternatives, too: https://alternativeto.net/software/clickteam-install-creator/)
 	- learn how installation can be simplified for Unix-like OSes
@@ -74,6 +75,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	- review debug dumps/logging, now controlled by $debug_mode:
 	 ? what user may need, what's needed for maintaining (and whether some parts should be switched on/off separately),
 	   what should be removed/substituted by autotests; add configuring and review through an interface
+	  . would be useful to have logs regarding what was requested (and which routing was used)
 	 - remove conflicting dumps to test_store_area_locating.txt
 	 * see https://www.loggly.com/ultimate-guide/php-logging-basics/ and http://www.phptherightway.com/ #errors_and_exceptions and #testing
 	 * add logging of errors for the POST requests (and all requests themselves? use for sync editing?)
@@ -99,7 +101,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	. until we stop relying on Apache:
 	 - add an option to protect only the .php, options and .ht files with password (see TW for details)
 	! try to find an external lib to avoid using .htaccess/apache
-	  like may be https://github.com/delight-im/PHP-Auth
+	  like may be https://github.com/delight-im/PHP-Auth or https://github.com/PHPAuth/PHPAuth
 	 . to make password protection work on Windows, Android, via Apache 2.2.18 and above
 	  ? there's no support of htaccess/Apache implementation on Android, right?
 	 . crypt is a unix-only solution, non-reliable
@@ -822,8 +824,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 		// get tiddler title (create DOM element and extract the title attribute)
 		$doc = new DOMDocument(); $doc->LoadHTML('<html><body>'.$tiddlerText.'</body></html>');
 		$tempElement = $doc->getElementsByTagName('div')->item(0);
-		// tests showed: $tiddlerTitle had wrong encoding for cyrillcs until used utf8_decode (see utf-8/ISO-8859-1, http://php.net/manual/en/class.domdocument.php)
-		 //# learn why
+		// fix encoding (see https://stackoverflow.com/q/8218230/ , utf-8/ISO-8859-1, http://php.net/manual/en/class.domdocument.php)
 		$tiddlerTitle = utf8_decode($tempElement->getAttribute('title'));
 		// push to the map
 		$tiddlersMap[$tiddlerTitle] = $tiddlerText;
@@ -841,10 +842,8 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	foreach($changes->tiddlers as $tiddlerTitle => $tiddlerChange) {
 		if($tiddlerChange == "deleted") {
 			unset($tiddlersMap[$tiddlerTitle]);
-	//# use the -> syntax? (failed to implement that at once as well as ->{}): the []-syntax can cause problems: https://stackoverflow.com/a/25748033/
 		} else if($tiddlerChange->added) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->added;
-	//# learn the difference between $tiddlerChange->{"added"} (or ->added) and $tiddlerChange["added"]; ($tiddlerChange["added"] is empty when $tiddlerChange->added is not)
 		} else if($tiddlerChange->changed) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->changed; // substituting
 		} else if($tiddlerChange->renamed) {
