@@ -779,6 +779,7 @@ function showTW($full_path = '') {
 function showDocPage() {
 	
 }
+// reads TW, applies changes, saves back; returns 0 on success and error text otherwise (not quite: see //#)
 function updateTW($wikiPath,$changes) { // TW-format-gnostic
 
 	if($changes == new stdClass()) // no changes
@@ -813,7 +814,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	$afterStorePart  = substr($wikiText,$posClosingDiv);
 	//^ second considerable load and peak rise in memory usage
 	unset($wikiText); // no longer needed, spare memory
-//# if $beforeStorePart or $afterStorePart is empty, return an error message
+//# return error msg if $beforeStorePart or $afterStorePart is empty (~wrong format/not a TW, .. not found)
 	
 	// extract tiddlers into $tiddlersMap (divs inside #storeArea, see updateOriginal)
 	$re_stored_tiddler = '#<div [^>]+>\s*<pre>[^<]*?</pre>\s*</div>#';
@@ -822,6 +823,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	// turn $tiddlersArray[0] into a map by tiddler title (extract title from title attribute)
 	foreach($tiddlersArray[0] as $tiddlerText) {
 		// get tiddler title (create DOM element and extract the title attribute)
+//# return error msg if DOMDocument is not available (php-xml module required), try extension_loaded('xml')
 		$doc = new DOMDocument(); $doc->LoadHTML('<html><body>'.$tiddlerText.'</body></html>');
 		$tempElement = $doc->getElementsByTagName('div')->item(0);
 		// fix encoding (see https://stackoverflow.com/q/8218230/ , utf-8/ISO-8859-1, http://php.net/manual/en/class.domdocument.php)
@@ -898,8 +900,11 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	}
 	
 	// save changed wiki
-	file_put_contents($wikiPath,$wikiText);
-	//# return errors if any
+	$saved = file_put_contents($wikiPath,$wikiText);
+	if(!$saved)
+		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
+			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
+			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
 	return 0;
 }
 function getImageFromBase64AndSave($data,$path,$name)
