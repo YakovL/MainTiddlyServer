@@ -26,13 +26,13 @@ body {
 	display: flex;
 	flex-direction: column;
 }
-.page_header, main, footer {
+.page-header, main, .wrapper__footer {
 	padding-left: 1rem;
 	padding-right: 1rem;
 	/* add some padding left and right, should be used on mobile */
 }
 
-.page_header {
+.page-header {
 	text-align: center;
 	background-color: black;
 	color: var(--main-gray);
@@ -40,12 +40,12 @@ body {
 	padding-bottom: 1.5em;
 	margin-bottom: 0.1em;
 }
-.page_header__title {
+.page-header__title {
 	padding: 0.25em 0 0.3em;
 	font-size: 2rem;
 	font-weight: 700;
 }
-.page_header__subtitle {
+.page-header__subtitle {
 	padding: 0.5em 0;
 }
 
@@ -85,7 +85,7 @@ main p, main section>ul, main section>ol {
 main ul, main ol { padding-left: 1.6em; }
 main a { color: #777777; }
 
-footer {
+.wrapper__footer {
 	background-color: black;
 	color: var(--main-gray);
 	
