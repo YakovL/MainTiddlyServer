@@ -247,104 +247,125 @@ function getOriginalUrl() {
 
 function implementOnlineSaving()
 {
-	// initialize loadedStore, loadedTitle, loadedMarkupBlocks
-	var loadedStore, // {} of texts of tiddlers as they should be saved
-	    loadedTitle,
-	    loadedHTML = window.originalHTML || recreateOriginal(), //# add loading original if this fails
-	    loadedMarkupBlocks = {},
-	    markupBlocksMeta = {
-	        MarkupPreHead:  { blockName:"PRE-HEAD" },
-	        MarkupPostHead: { blockName:"POST-HEAD" },
-	        MarkupPreBody:  { blockName:"PRE-BODY" },
-	        MarkupPostBody: { blockName:"POST-SCRIPT" }
-	    }, blockName;
-	for(var tiddlerName in markupBlocksMeta)
-	{
-		blockName = markupBlocksMeta[tiddlerName].blockName;
-		markupBlocksMeta[tiddlerName].start =   "<!--"+blockName+"-START-->\n";
-		markupBlocksMeta[tiddlerName].end   = "\n<!--"+blockName+"-END-->";
+	TiddlyWiki.prototype.rememberStoredState = function(title,markupBlocks,externalizedTiddlers) {
+		// perhaps a more correct term would be "stored-tracking"
+		
+		if(title !== null)
+			this.storedTitle = title;
+		
+		this.storedMarkupBlocks = this.storedMarkupBlocks || {};
+		for(var tiddlerName in markupBlocks)
+			this.storedMarkupBlocks[tiddlerName] = markupBlocks[tiddlerName];
+		
+		// {} of texts of tiddlers as they should be saved
+		this.storedTiddlers = externalizedTiddlers;
+	};
+	//# may be remembering whole HTML [= window.originalHTML || recreateOriginal()] and a getter should be added
+	//  for encrypted vault support; upgrading support?
+
+	TiddlyWiki.prototype.markupBlocksMeta = {
+		
+		MarkupPreHead:  { blockName:"PRE-HEAD" },
+		MarkupPostHead: { blockName:"POST-HEAD" },
+		MarkupPreBody:  { blockName:"PRE-BODY" },
+		MarkupPostBody: { blockName:"POST-SCRIPT" }
+	};
+	var blockName;
+	for(var tiddlerName in TiddlyWiki.prototype.markupBlocksMeta) {
+	
+		blockName = TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].blockName;
+		TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].start =   "<!--"+blockName+"-START-->\n";
+		TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].end   = "\n<!--"+blockName+"-END-->";
 	}
 
-	window.getUpdatedMarkupBlock = function()
-	{
+	TiddlyWiki.prototype.getExternalizedMarkupBlocks = function() {
+	
 		var blockValues = {};
-		for(var tiddlerName in markupBlocksMeta)
-		{
+		for(var tiddlerName in this.markupBlocksMeta) {
+		
 			// apadted from replaceChunk
 			blockValues[tiddlerName] =
-				convertUnicodeToFileFormat(store.getRecursiveTiddlerText(tiddlerName,""));
+				convertUnicodeToFileFormat(this.getRecursiveTiddlerText(tiddlerName,""));
 		}
 		return blockValues;
 	};
-
-	window.refreshLoadedData = function()
-	{
-		// title
-		loadedTitle = convertUnicodeToFileFormat(getPageTitle()).htmlEncode();
-
-		// markup blocks
-		var updatedBlocks = window.getUpdatedMarkupBlock();
-		for(var tiddlerName in updatedBlocks)
-			markupBlocksMeta[tiddlerName].value = updatedBlocks[tiddlerName];
-
-		// store
-		loadedStore = {};
-		var saver = store.getSaver();
-		store.forEachTiddler(function(title,tiddler){
-			//loadedStore.addTiddler(jQuery.extend(true, {}, tiddler));
+	TiddlyWiki.prototype.getExternalizedTitle = function() {
+		
+		// for now, we only support title updating for the main store
+		return this !== store ? null : convertUnicodeToFileFormat(getPageTitle()).htmlEncode()
+	};
+	TiddlyWiki.prototype.getExternalizedTiddlers = function() {
+		
+		var externalizedTiddlers = {}, saver = this.getSaver();
+		this.forEachTiddler(function(title,tiddler){
 			if(!tiddler.doNotSave())
-				loadedStore[title] = saver.externalizeTiddler(store,tiddler);
+				externalizedTiddlers[title] = saver.externalizeTiddler(this,tiddler);
 		});
-//# a smarter but may be more fragile approach would be to use diffs calced by getChanges to refresh
+		return externalizedTiddlers;
+	};
+	
+	TiddlyWiki.prototype.refreshStoredData = function() {
+	
+		this.rememberStoredState(
+			// title, remember only for main store
+			this.getExternalizedTitle(),
+			// markup blocks, tiddlers
+			this.getExternalizedMarkupBlocks(), this.getExternalizedTiddlers()
+//# use diffs calced by getChanges to refresh .storedTiddlers instead?
+		);
 	};
 
-	window.getChanges = function() {
+	TiddlyWiki.prototype.getChanges = function() {
+
 		var overallChagnes = {};
 
+		// check if some tiddlers were updated
 		var changedTiddlers = {};
 		// hash by title of "deleted"/{added:externalizedText}/{changed:externalizedText}
 
-		var saver = store.getSaver();
-		store.forEachTiddler(function(title,tiddler){
+		var saver = this.getSaver();
+		this.forEachTiddler(function(title,tiddler){
+			
 			if(tiddler.doNotSave()) return;
-			var currentExternalizedText = saver.externalizeTiddler(store,tiddler);
-			if(!loadedStore[title]) {
+			var currentExternalizedText = saver.externalizeTiddler(this,tiddler);
+			if(!this.storedTiddlers[title]) {
 				changedTiddlers[title] = { added:currentExternalizedText };
 				return;
 			}
-			if(currentExternalizedText != loadedStore[title])
+			if(currentExternalizedText != this.storedTiddlers[title])
 				changedTiddlers[title] = { changed:currentExternalizedText };
 		});
-		for(var title in loadedStore)
-			if(!store.fetchTiddler(title))
-			changedTiddlers[title] = "deleted";
+		for(var title in this.storedTiddlers)
+			if(!this.fetchTiddler(title))
+				changedTiddlers[title] = "deleted";
 
-//# find renamed tiddlers (added + deleted with same text), put 1 "renamed" instead of 1 "deleted" and 1 "added"
+		//# find renamed tiddlers (added + deleted with same text),
+		//  put 1 "renamed" instead of 1 "deleted" and 1 "added"?
 
 		for(var key in changedTiddlers) { // if any changes
 			overallChagnes.tiddlers = changedTiddlers; break;
 		}
 
-		// check if stored page title was changed
-		var currentTitle = convertUnicodeToFileFormat(getPageTitle()).htmlEncode();
-		if(currentTitle != loadedTitle)
+		// check if page title was changed
+		var currentTitle = this.getExternalizedTitle();
+		if(currentTitle != this.storedTitle)
 			overallChagnes.title = currentTitle;
 
 		// check if markupBlocks were updated
-		var updatedBlocks = window.getUpdatedMarkupBlock(), blockName;
+		var updatedBlocks = this.getExternalizedMarkupBlocks(), blockName;
 		for(var tiddlerName in updatedBlocks)
-			if(updatedBlocks[tiddlerName] != markupBlocksMeta[tiddlerName].value) {
+			if(updatedBlocks[tiddlerName] != this.storedMarkupBlocks[tiddlerName]) {
 				overallChagnes.markupBlocks = overallChagnes.markupBlocks || {};
-				blockName = markupBlocksMeta[tiddlerName].blockName;
+				blockName = this.markupBlocksMeta[tiddlerName].blockName;
 				overallChagnes.markupBlocks[blockName] = updatedBlocks[tiddlerName];
 			}
 
 		return overallChagnes;
 	}
 
-	window.saveOnlineChanges = function()
-	{
-		var dataToSend = JSON.stringify(window.getChanges());
+	window.saveOnlineChanges = function() {
+	
+		var dataToSend = JSON.stringify(store.getChanges());
 		if(dataToSend == "{}")
 			return;
 		var currentPageRequestMatch = (/\?(?:[^&].+)*?(wiki=[^&]+)(&|$)/mg).exec(window.location.search),
@@ -361,22 +382,21 @@ function implementOnlineSaving()
 					displayMessage("Error while saving. Server:\n"+responseText);
 			} else
 				displayMessage("Error while saving, failed to reach the server, status: "+xhr.status);
-		}, null/*params for callback*/,null,urlEncodedRequestBody,"application/x-www-form-urlencoded");
-//# "application/x-www-form-urlencoded; charset=UTF-8" is a default contentType, should we omit it?
+		}, null/*params for callback*/,null,urlEncodedRequestBody);
 	};
 
-	// when successfully saved, update loadedStore
+	// when successfully saved, update .storedTiddlers etc
 	TiddlyWiki.prototype.orig_noRefreshingLoaded_setDirty = store.setDirty;
 	TiddlyWiki.prototype.setDirty = function(dirty){
-		if(!dirty) window.refreshLoadedData();
-		return store.orig_noRefreshingLoaded_setDirty.apply(this,arguments);
+		if(!dirty) this.refreshStoredData();
+		return this.orig_noRefreshingLoaded_setDirty.apply(this,arguments);
 	};
 
 	// since getPageTitle uses wikifyPlainText which requires formatter which is calced
 	//  after all plugins are loaded, we calc it in advance...
 	if(!formatter) {
 		formatter = new Formatter(config.formatters);
-		window.refreshLoadedData();
+		store.refreshStoredData();
 		formatter = null;
 	}
 	//  ...and remove it afterwards for backward compability
