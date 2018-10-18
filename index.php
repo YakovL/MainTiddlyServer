@@ -114,6 +114,8 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ show error message when saving changes fails due to access failure
+	1.6.1
 	+ made 'unavailable' error pages respond with 404 (fix an issue with removable storages)
 	+ change: now request to MTS without ?.. opens options page if those are not set and wikis otherwise,
 	  removed unnecessary "bookmark this" links
@@ -219,8 +221,16 @@ function updateAndSendMain(original,onSuccess) //rather current HTML than origin
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function()
 	{
-		if (this.readyState == 4 && this.status == 200)
-			onSuccess();
+		if (this.readyState == 4) {
+			if(this.status == 200) {
+				if(this.responseText == "saved")
+					onSuccess();
+				else
+					displayMessage("Error while saving. Server:\n"+this.responseText);
+			}
+			else
+				displayMessage("Error while saving, failed to reach the server, status: "+this.status);
+		}
 	}
 	xmlhttp.open("POST", getOriginalUrl(), true);
 	xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -1028,7 +1038,12 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 		$content = $_POST['content'];
 		$content = removeInjectedJsFromWiki($content);
 //# check if putting ↑ into 1 line reduces memory usage
-		file_put_contents($wikiPath, $content);
+//# .oO can removeInjectedJsFromWiki fail?
+		$saved = file_put_contents($wikiPath, $content);
+		echo $saved ? 'saved' :
+			"MainTiddlyServer failed to save updated TiddlyWiki.\n".
+			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
+			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
 	} else { // incremental saving from the saveChanges request
 		//# intergate with TrackChangesPlugin, make this work properly (actually change and save), embed into MTS
 		$changesJSON = $_POST['saveChanges'];
