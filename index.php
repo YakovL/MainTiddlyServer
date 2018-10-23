@@ -176,19 +176,37 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ set dirty: false on saving response, not when sending request
 */
 
-$injectedJsHelpers = 'function saveOnlineChanges()
-{
+$injectedJsHelpers = 'function isGranulatedSavingSupported() { // TW v2.8.0 and above where recreateOriginal is finished and used
+
+	return version.major > 2 || (version.major == 2 && version.minor >= 8);
+}
+function shouldGranulatedSavingBeUsed() {
+
+	return isGranulatedSavingSupported() && !config.options.chkAvoidGranulatedSaving;
+}
+
+function saveOnlineChanges() {
+
+	if(shouldGranulatedSavingBeUsed())
+		saveOnlineGranulatedChanges();
+	else
+		saveOnlineNonGranulatedChanges();
+}
+function saveOnlineNonGranulatedChanges() {
+
 	asyncLoadOriginal(function(original){
 		// on successful original load
 		updateAndSendMain(original,confirmMainSaved);
 	});
 };
+function saveOnlineGranulatedChanges() {}
 
 // patch so that FireFox does not corrupt the content
 //# to be tested with IE, Edge
 convertUnicodeToFileFormat = function(s) { return config.browser.isIE ? convertUnicodeToHtmlEntities(s) : s; };
 
 function asyncLoadOriginal(onSuccess) {
+	
 	// Load the original and proceed on success
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function() {
@@ -198,8 +216,8 @@ function asyncLoadOriginal(onSuccess) {
 	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
 	xmlhttp.send();
 };
-function updateAndSendMain(original,onSuccess) //rather current HTML than original
-{
+function updateAndSendMain(original,onSuccess) { //rather current HTML than original
+
 	// Skip any comment at the start of the file
 	var documentStart = original.indexOf("<!DOCTYPE");
 	original = original.substring(documentStart);
@@ -255,8 +273,8 @@ function getOriginalUrl() {
 	return document.location.protocol + "//" + document.location.host + document.location.pathname;
 };
 
-function implementOnlineSaving()
-{
+function implementOnlineSaving() {
+
 	TiddlyWiki.prototype.rememberStoredState = function(title,markupBlocks,externalizedTiddlers) {
 		// perhaps a more correct term would be "stored-tracking"
 		
@@ -273,25 +291,18 @@ function implementOnlineSaving()
 	//# may be remembering whole HTML [= window.originalHTML || recreateOriginal()] and a getter should be added
 	//  for encrypted vault support; upgrading support?
 
-	TiddlyWiki.prototype.markupBlocksMeta = {
+	TiddlyWiki.prototype.markupBlocksMap = {
 		
-		MarkupPreHead:  { blockName:"PRE-HEAD" },
-		MarkupPostHead: { blockName:"POST-HEAD" },
-		MarkupPreBody:  { blockName:"PRE-BODY" },
-		MarkupPostBody: { blockName:"POST-SCRIPT" }
+		MarkupPreHead:  "PRE-HEAD",
+		MarkupPostHead: "POST-HEAD",
+		MarkupPreBody:  "PRE-BODY",
+		MarkupPostBody: "POST-SCRIPT"
 	};
-	var blockName;
-	for(var tiddlerName in TiddlyWiki.prototype.markupBlocksMeta) {
-	
-		blockName = TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].blockName;
-		TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].start =   "<!--"+blockName+"-START-->\n";
-		TiddlyWiki.prototype.markupBlocksMeta[tiddlerName].end   = "\n<!--"+blockName+"-END-->";
-	}
 
 	TiddlyWiki.prototype.getExternalizedMarkupBlocks = function() {
 	
 		var blockValues = {};
-		for(var tiddlerName in this.markupBlocksMeta) {
+		for(var tiddlerName in this.markupBlocksMap) {
 		
 			// apadted from replaceChunk
 			blockValues[tiddlerName] =
@@ -366,14 +377,14 @@ function implementOnlineSaving()
 		for(var tiddlerName in updatedBlocks)
 			if(updatedBlocks[tiddlerName] != this.storedMarkupBlocks[tiddlerName]) {
 				overallChagnes.markupBlocks = overallChagnes.markupBlocks || {};
-				blockName = this.markupBlocksMeta[tiddlerName].blockName;
+				blockName = this.markupBlocksMap[tiddlerName];
 				overallChagnes.markupBlocks[blockName] = updatedBlocks[tiddlerName];
 			}
 
 		return overallChagnes;
 	}
 
-	window.saveOnlineChanges = function() {
+	window.saveOnlineGranulatedChanges = function() {
 	
 		var dataToSend = JSON.stringify(store.getChanges());
 		if(dataToSend == "{}")
@@ -440,22 +451,16 @@ function implementRequestProxying() {
 	};
 }
 
-function isGranulatedSavingSupported() // TW v2.8.0 and above where recreateOriginal is finished and used
-{
-	return version.major > 2 || (version.major == 2 && version.minor >= 8);
-}
-
 // we need store and other stuff to be defined when we implementOnlineSaving
-var noOnlineSavgin_loadPlugins = loadPlugins;
+var noOnlineSaving_loadPlugins = loadPlugins;
 loadPlugins = function() {
 	
 	implementRequestProxying();
 	
 	if(isGranulatedSavingSupported())
 		implementOnlineSaving();
-	else
-		; //# suggest to update TW (old "full" saving will be used)
-	return noOnlineSavgin_loadPlugins.apply(this,arguments);
+	
+	return noOnlineSaving_loadPlugins.apply(this,arguments);
 }
 ';
 
@@ -498,11 +503,12 @@ function injectJsToWiki($wikiData) {
 }
 function removeInjectedJsFromWiki($content) {
 	
-	//# global $injectedJsHelpers;
-	
-	$start = strpos($content, "function saveOnlineChanges("); //# first line of $injectedJsHelpers, should be articulated
-	$end = strpos($content, "function saveMain("); //# calc using $injectedJsHelpers' length or, better, check match
-	$content = substr($content, 0, $start) . substr($content, $end);
+	global $injectedJsHelpers;
+
+	$start = strpos($content, $injectedJsHelpers); //# we imply $injectedJsHelpers is in TW ~html (and is not changed)
+	//# can we avoid implying that $injectedJsHelpers is not present inside TW content?
+	$end = $start + strlen($injectedJsHelpers);
+	$content = substr($content, 0, $start) . substr($content, $end); //# try str_replace/str_ireplace instead (compare times)
 	
 	$content = preg_replace('/return saveOnlineChanges\(\);/', '', $content);
 
