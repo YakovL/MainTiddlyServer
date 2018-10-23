@@ -20,6 +20,12 @@ You will then be asked to perform some initial configuration, after which you ca
 
 	to do:
 	! collect user scenarios (+), design interfaces, make them simple and straight-forward
+	 ! simplify installation
+	  - try http://www.clickteam.com/install-creator-2 for simplifying the installation process on Windows (look for alternatives, too: https://alternativeto.net/software/clickteam-install-creator/)
+	   * Windows Store?
+	  - learn how installation can be simplified for Unix-like OSes (packaging, stores)
+	  - learn how installation can be simplified using Composer
+	 - add upload TW option, download; new TW option (wikis)
 	 - minimize pages and clicks (showTW: remove extra page..)
 	 - improve description of memory_limit in ?options + comment source better /.oO can we increase automatically?
 	 - tell user password protection won't work when it is so
@@ -31,9 +37,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	 * make the interfaces be really shared between MTS and its site (how to?)
 	- add docs and history of MTS changes as html served by MTS itself (showDocPage)
 	.oO improve typographics/layout (same as on the site? commons css?), including color scheme (different one?)
-
-	- try http://www.clickteam.com/install-creator-2 for simplifying the installation process on Windows (look for alternatives, too: https://alternativeto.net/software/clickteam-install-creator/)
-	- learn how installation can be simplified for Unix-like OSes
 	
 	- go on implementing working with other folders (see after $workingFolder)
 	 - process in $_POST['options'] section the choice of the workingFolder in the options interface
@@ -42,7 +45,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - allow including from other dataFolders (next: by w.f.'s aliases /implemented: by relative address)
 	 - next: allow choosing workingFolder in interface, visit subfolders (for microrepos), ..
 
-	- allow to switch off proxying until all requests are processed properly
+	- allow to switch off proxying (js hijacking)
 	- either proxy non-GET requests (use $_REQUEST instead?) or limit httpReq hijacking to GET requests
 	- pass _any_ request that is not processed directly, through proxy (now those to the same domain won't work)
 	- gather proxy implementation issues, test stuff
@@ -114,6 +117,8 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ refactored injected js to fix exotic issues and to support custom saving (encrypted etc),
+	  governed by config.options.chkAvoidGranulatedSaving
 	+ show error message when saving changes fails due to access failure
 	1.6.1
 	+ made 'unavailable' error pages respond with 404 (fix an issue with removable storages)
