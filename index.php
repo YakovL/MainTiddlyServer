@@ -185,6 +185,10 @@ $injectedJsHelpers = 'function isGranulatedSavingSupported() { // TW v2.8.0 and 
 
 	return version.major > 2 || (version.major == 2 && version.minor >= 8);
 }
+
+// make option visible through the <<options>> macro (but not among standart options)
+if(config.options.chkAvoidGranulatedSaving === undefined) config.options.chkAvoidGranulatedSaving = false;
+
 function shouldGranulatedSavingBeUsed() {
 
 	return isGranulatedSavingSupported() && !config.options.chkAvoidGranulatedSaving;
