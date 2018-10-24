@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.6.1';
+$version = '1.6.2';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -117,6 +117,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.6.2
 	+ refactored injected js to fix exotic issues and to support custom saving (encrypted etc),
 	  governed by config.options.chkAvoidGranulatedSaving
 	+ show error message when saving changes fails due to access failure
