@@ -25,7 +25,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	   * Windows Store?
 	  - learn how installation can be simplified for Unix-like OSes (packaging, stores)
 	  - learn how installation can be simplified using Composer
-	 - add upload TW option, download; new TW option (wikis)
+	 - add upload TW option, download; new TW option (?wikis)
 	 - minimize pages and clicks (showTW: remove extra page..)
 	 - improve description of memory_limit in ?options + comment source better /.oO can we increase automatically?
 	 - tell user password protection won't work when it is so
@@ -1061,13 +1061,11 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
 			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
 	} else { // incremental saving from the saveChanges request
-		//# intergate with TrackChangesPlugin, make this work properly (actually change and save), embed into MTS
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
-		//# use json_decode($changes); and ... to extract actual changes
 		$errors = updateTW($wikiPath,$changes);
-		//# respond telling if we have succeeded
-		echo $errors ? $errors : 'saved';
+		$successStatus = $errors ? $errors : 'saved';
+		echo $successStatus;
 	}
 }
 else if (isset($_POST['options']))
