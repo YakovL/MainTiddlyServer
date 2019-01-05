@@ -704,13 +704,14 @@ function showOptionsPage(){
 	
 	// login/password
 	$output .= '<div class="options-form__password-panel">' .
-	     //# align labels and inputs to one line between them
 	     '<p><label><input type="checkbox" name="setpassword" onclick="enablePasswordSetting(this.checked)">Change or set a password</label></p>';
 	if (!file_exists('.htaccess'))
 		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
-	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i><br>' .
-	       '<label>Username: <input type="text" name="un" id="un" disabled="disabled"></label><br>' .
-	       '<label>Password: <input type="text" name="pw" id="pw" disabled="disabled"></label></p>' .
+	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i></p>' .
+	       '<table><tbody>'.
+	         '<tr><td><label for="un">Username:</label></td> <td><input type="text" name="un" id="un" disabled="disabled"></td></tr>' .
+	         '<tr><td><label for="pw">Password:</label></td> <td><input type="text" name="pw" id="pw" disabled="disabled"></td></tr>' .
+	       '</table></tbody>'.
 	     '</div>';
 	
 	// memory limit
