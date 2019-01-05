@@ -663,7 +663,9 @@ function showOptionsPage(){
 	global $options, $optionsLink;
 	
 	$output = '<style>
-		
+		.options-form__password-panel { padding: 0 1em; }
+		.no-password-warning { color: red; }
+		.memory-limit-input { width: 6em; }
 	</style>
 	<script type="text/javascript">
 		function enablePasswordSetting(isEnabled) {
@@ -672,7 +674,7 @@ function showOptionsPage(){
 		}
 	</script>';
 	
-	$output .= '<form name="input" action="?options" method="post">' .
+	$output .= '<form class="options-form" name="input" action="?options" method="post">' .
 				 '<input type="hidden" name="options">';
 	
 	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
@@ -701,11 +703,11 @@ function showOptionsPage(){
 				'name="single_wiki_mode">single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
-	$output .= '<div style="padding: 0 1em;">' .
+	$output .= '<div class="options-form__password-panel">' .
 	     //# align labels and inputs to one line between them
 	     '<p><label><input type="checkbox" name="setpassword" onclick="enablePasswordSetting(this.checked)">Change or set a password</label></p>';
 	if (!file_exists('.htaccess'))
-		$output .= '<p style="color: red">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
+		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
 	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i><br>' .
 	       '<label>Username: <input type="text" name="un" id="un" disabled="disabled"></label><br>' .
 	       '<label>Password: <input type="text" name="pw" id="pw" disabled="disabled"></label></p>' .
@@ -713,7 +715,7 @@ function showOptionsPage(){
 	
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . $options['memory_limit'] . 
-		"' style='width: 6em;'>" .
+		"' class='memory-limit-input'>" .
 		" (increase if your TW is large and saving doesn't work, try values like 6 * size of your TW;" .
 		" leave blank to restore default value)</p>";
 
