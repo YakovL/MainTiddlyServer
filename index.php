@@ -665,9 +665,9 @@ function showOptionsPage(){
 		
 	</style>
 	<script type="text/javascript">
-		function check() {
-			document.getElementById("un").disabled = !document.getElementById("spw").checked;
-			document.getElementById("pw").disabled = !document.getElementById("spw").checked;
+		function enablePasswordSetting(isEnabled) {
+			document.getElementById("un").disabled = !isEnabled;
+			document.getElementById("pw").disabled = !isEnabled;
 		}
 	</script>';
 	
@@ -700,7 +700,7 @@ function showOptionsPage(){
 	// login/password
 	$output .= '<div style="padding: 0 1em;">' .
 	     //# align labels and inputs to one line between them
-	     '<p><label><input onclick="check()" type="checkbox" name="setpassword" id="spw">Change or set a password</label></p>';
+	     '<p><label><input type="checkbox" name="setpassword" onclick="enablePasswordSetting(this.checked)">Change or set a password</label></p>';
 	if (!file_exists('.htaccess'))
 		$output .= '<p style="color: red">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
 	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i><br>' .
