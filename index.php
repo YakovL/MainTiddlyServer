@@ -1016,6 +1016,7 @@ if(!array_key_exists($options['workingFolderName'],$dataFolders))
 	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
 $workingFolder = $dataFolders[$options['workingFolderName']];
 
+$system_memory_limit = ini_get('memory_limit');
 if($options['memory_limit'])
 	ini_set('memory_limit',$options['memory_limit']);
 else
@@ -1070,6 +1071,13 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 }
 else if (isset($_POST['options']))
 {
+	function setOption($name, $unsetEmpty = false) {
+		global $options;
+		$options[$name] = $_POST[$name];
+		if($unsetEmpty && !$options[$name])
+			unset($options[$name]); // https://stackoverflow.com/a/25748033/3995261
+	}
+
 	//# use $_POST['foldername']: check if is among dataFolders, set if is
 	
 	// Make sure the selected wiki file is really in our directory; set it
@@ -1080,11 +1088,10 @@ else if (isset($_POST['options']))
 		showMtsPage('<p>' . $_POST['wikiname'] . ' is not in the working directory</p>');
 		exit;
 	}
-	$options['wikiname'] = $_POST['wikiname'];
+	setOption('wikiname');
 	
-	$newMemoryLimit = $_POST['memory_limit'];
-	$options['memory_limit'] = $newMemoryLimit;
-	if(!$newMemoryLimit || $newMemoryLimit == ini_get('memory_limit')) //# the second one works only after 2 saves
+	setOption('memory_limit', true);
+	if($_POST['memory_limit'] == $system_memory_limit) //# retest limit saving and resetting
 		unset($options['memory_limit']);
 	
 	saveOptions($options);
