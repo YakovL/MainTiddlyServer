@@ -580,7 +580,7 @@ function getListOfTwLikeHtmls() {
 };
 function showMtsPage($html,$title = '',$httpStatus = 200) {
 	
-	global $optionsLink, $wikisLink, $version;
+	global $options, $optionsLink, $baselink, $wikisLink, $version;
 	
 	http_response_code($httpStatus);
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
@@ -650,7 +650,8 @@ function showMtsPage($html,$title = '',$httpStatus = 200) {
 	echo '</head><body><div class="wrapper">';
 	//# set navigation__link_currently-opened class to the currently opened page + get rid of "Available TiddlyWikis:" on the wikis page
 	echo '<nav class="navigation">';
-	echo   '<a class="navigation__link" href="'. $wikisLink .'">wikis</a>';
+	echo   '<a class="navigation__link" href="'.($options['single_wiki_mode'] ? $baselink : $wikisLink).'">'.
+			($options['single_wiki_mode'] ? 'wiki' : 'wikis').'</a>';
 	echo   '<a class="navigation__link" href="'. $optionsLink .'">options</a>';
 	echo '</nav>';
 	echo '<main>'. $html .'</main>';
@@ -696,6 +697,8 @@ function showOptionsPage(){
 		$output .= "<option value=\"$f\"" . ($f == $options['wikiname'] ? " selected" : "") . ">$f</option>\n";
 	}
 	$output .= '</select></p>';
+	$output .= '<p><label><input type="checkbox" '.($options['single_wiki_mode'] ? 'checked=checked' : '').
+				'name="single_wiki_mode">single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
 	$output .= '<div style="padding: 0 1em;">' .
@@ -821,6 +824,14 @@ function showTW($full_path = '') {
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
 	print $wikiData;
 	return true;
+}
+function showWikisOrWiki() {
+
+	global $options;
+	if($options['single_wiki_mode'])
+		showTW();
+	else
+		showWikisList();
 }
 function showDocPage() {
 	
@@ -1089,6 +1100,8 @@ else if (isset($_POST['options']))
 		exit;
 	}
 	setOption('wikiname');
+
+	setOption('single_wiki_mode', true);
 	
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit) //# retest limit saving and resetting
@@ -1346,8 +1359,7 @@ else if (isset($_GET['proxy_to']))
 }
 else if (isset($_GET['wikis'])) {
 
-	// show a page with links to all the wikis in the folder
-	showWikisList();
+	showWikisOrWiki();
 }
 // open a wiki by url in request
 else if (isset($_GET['wiki'])) {
@@ -1365,7 +1377,7 @@ else if (isset($_GET['wiki'])) {
 	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
 } else {
 	if($options['wikiname'])
-		showWikisList();
+		showWikisOrWiki();
 	else
 		showOptionsPage();
 	
