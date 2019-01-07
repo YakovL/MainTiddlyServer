@@ -735,7 +735,7 @@ function showWikisList(){
 			p, ul { margin: 0.5em 0; }
 			.wikis-list { text-align: center; }
 			.wikis-list__list { display: inline-block; }
-			.wikis-list li { padding: 0 0.5em; text-align: left; }
+			.wikis-list__item { padding: 0 0.5em; text-align: left; }
 			.keyboard-only { display: none; }
 			@media screen and (min-width: 700px) {
 				.selected { background-color: #ddddff; }
@@ -749,7 +749,7 @@ function showWikisList(){
 	 $htmls = getListOfTwLikeHtmls();
 	 foreach ($htmls as $i => $f)
 		//# add helper to build ?wiki=.. links (escaping +, adding working folder etc), .oO routing
-		$output .= '<li><a href="' . $baselink . '?wiki=' . str_replace('+','%2B',$f) . "\">$f</a></li>\n";
+		$output .= '<li class="wikis-list__item"><a href="' . $baselink . '?wiki=' . str_replace('+','%2B',$f) . "\">$f</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
 	"<p class='keyboard-only'>You can use keyboard to navigate (&uarr;/&darr;/home/end) between wikis and open them (enter).</p>" .
