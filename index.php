@@ -804,8 +804,8 @@ function showTW($full_path = '') {
 		if (!$wikiname || !$workingFolder) //# check is_dir as well?
 			return showOptionsPage();
 
-		showMtsPage("Error: $wikiPath does not exist or is not a file<br>" .
-			"Select a wiki file at <a href='$optionsLink'>$optionsLink</a>",'',404);
+		showMtsPage("<p>Error: \"$wikiPath\" does not exist or is not a file.</p>" .
+			"<p>Select a wiki file on the <a href='$optionsLink'>options page</a></p>",'',404);
 		return false;
 	}
 	$wikiData = file_get_contents($wikiPath);
@@ -1107,7 +1107,7 @@ else if (isset($_POST['options']))
 	setOption('single_wiki_mode', true);
 	
 	setOption('memory_limit', true);
-	if($_POST['memory_limit'] == $system_memory_limit) //# retest limit saving and resetting
+	if($_POST['memory_limit'] == $system_memory_limit)
 		unset($options['memory_limit']);
 	
 	saveOptions($options);
@@ -1373,7 +1373,7 @@ else if (isset($_GET['wiki'])) {
 		return;
 	}
 	if(!isTwInWorkingFolder($_GET['wiki'])) {
-		showMtsPage("<p>" . $_GET['wiki'] . " isn't a TiddlyWiki of supported version in the server working folder.</p>"
+		showMtsPage("<p>\"" . $_GET['wiki'] . "\" isn't a TiddlyWiki of supported version in the server working folder.</p>"
 		   . "<p>Please visit <a href=\"$wikisLink\">the list of wikis</a> to pick an existing one.</p>",'',404);
 		return;
 	}
@@ -1383,10 +1383,5 @@ else if (isset($_GET['wiki'])) {
 		showWikisOrWiki();
 	else
 		showOptionsPage();
-	
-//$data = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABoklEQVRIie1WsW7CQAy9L6FfwE90QGyVGLLB0gGmTlElYOkSZWBhyhQx3wjKAh1IByBSoNF1uSXfAtfBlbmcE5QE2qHCypKX3HvPsa2YhSKOpFBXRyhiCr5/7phSyuW+5dhXykRSuNzXES/g892awY3L/Ua3lSvjBdw4WYRbjo2IF/DH1+fj8cjwMWgYMl7AAaTuKB5JAQg8ne/WSilGz7THg+V+Y6gOZ9PT6UTdGLjl2ICD/bMAsAO1fgC4DJYLOCSB9n8EvIDnUmNUwi3HRvtKKfbxtb9AXSMiKdC+0mtgBGRa/iri+UMBo6/psWa/k0sHeBFPpov0vq4nQHkyk6z3dT0BypOZZL2va38igydTZL1ZgajZ7+D1oJWU4kU8/6lNf13gPgcFPPc5qNBFSSrxV3yTSFK5OmzPAr3JqD0e3OTXlqSyNxlBJRhCkClNovxehNQ5XQRoo9sykii/FyF1I7vLMLQ/nE2hi/Ukyu9FoYif3l6oGwb28T2X+0YSlfYilDlPcpJK6s6oRNV9CWRAg60OW/reQltsakco4uV+8w0KliK3g6WazQAAAABJRU5ErkJggg==';
-// keep in mind: http://stackoverflow.com/questions/16566460/png-image-being-cropped-when-saved-from-base64-decode
-//$src  = 'https://www.gravatar.com/avatar/481e30b5dc2df70348919dee5e0b8b65?s=32&d=identicon&r=PG&f=1';
-//getImageByUriAndSave($src,'test/','test_file');
 }
 ?>
