@@ -674,7 +674,7 @@ function showOptionsPage(){
 		}
 	</script>';
 	
-	$output .= '<form class="options-form" name="input" action="?options" method="post">' .
+	$output .= '<form class="options-form" name="input" action="'.$optionsLink.'" method="post">' .
 				 '<input type="hidden" name="options">';
 	
 	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
@@ -1374,7 +1374,7 @@ else if (isset($_GET['wiki'])) {
 	}
 	if(!isTwInWorkingFolder($_GET['wiki'])) {
 		showMtsPage("<p>" . $_GET['wiki'] . " isn't a TiddlyWiki of supported version in the server working folder.</p>"
-		   . "<p>Please visit <a href=\"?wikis\">the list of wikis</a> to pick an existing one.</p>",'',404);
+		   . "<p>Please visit <a href=\"$wikisLink\">the list of wikis</a> to pick an existing one.</p>",'',404);
 		return;
 	}
 	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
