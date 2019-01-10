@@ -527,11 +527,17 @@ function removeInjectedJsFromWiki($content) {
 	
 	return $content;
 }
-function hasSupportedTwVersion($wikiFileText){
+function getTwVersion($wikiFileText){
 	
 	preg_match('/version = {title: "TiddlyWiki", major: (\d+), minor: (\d+), revision: (\d+)/', $wikiFileText, $match);
-	$version = intval($match[1]) * 10000 + intval($match[2]) * 100 + intval($match[3]);
-	$versionstring = $match[1] . "." . $match[2] . "." . $match[3];
+	return $match;
+}
+function hasSupportedTwVersion($wikiFileText){
+
+	$versionParts = getTwVersion($wikiFileText);
+	if(!$versionParts)
+		return false;
+	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
 	if ($version < 20605 or $version > 20901)
 		return false;
 	return true;
@@ -814,11 +820,15 @@ function showTW($full_path = '') {
 	// if the version isn't supported, show that
 	if (!hasSupportedTwVersion($wikiData)) {
 	
+		$versionParts = getTwVersion($wikiData);
+		$versionString = $versionParts ? ($versionParts[1] .".". $versionParts[2] .".". $versionParts[3]) : '';
 		showMtsPage(
-			"The TiddlyWiki file $wikiPath has the version $versionstring which isn't compatible with MainTiddlyServer<br>" .
-			'You will have received a compatible wiki file with the name empty.html together with MainTiddlyServer which you could use<br>' .
-			'Or you could check for an update<br>' .
-			"Select a different wiki file at <a href='$optionsLink'>$optionsLink</a>"
+			"<p>The TiddlyWiki file \"$wikiPath\" has the version \"$versionString\" which isn't compatible with MainTiddlyServer.</p>" .
+			//# show only the relevant one?
+			"<p>If that's an old version, please try to upgrade it.</p>". //# link to docs? upgrade via MTS?
+			"<p>If that's the newest version not yet supported by MTS, please create an issue ".
+				"<a href='https://github.com/YakovL/MainTiddlyServer/issues'>in the MTS repo</a>.</p>".
+			"<p>You may also select a different wiki file on the <a href='$optionsLink'>options page</a>.</p>"
 		);
 		return false;
 	}
