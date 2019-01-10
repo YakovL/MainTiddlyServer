@@ -796,12 +796,11 @@ function showWikisList(){
 // or TW is served via ?wiki=wikiname.html request
 function showTW($full_path = '') {
 	
-	// to use vars from outer scope
 	global $version, $options, $optionsLink, $workingFolder;
 	
 	$wikiname = $options['wikiname'];
 	$wikiPath = $full_path ? $full_path : ($workingFolder . "/" . $wikiname);
-//# if ?wiki=.. is not set, change path to ?wiki=.. (http 30_ redirect?)
+//# if ?wiki=.. is not set and it is not single_wiki_mode, change path to ?wiki=.. (http 30_ redirect?)
 //  header('Location: '.$newURL); // $newURL should be absolute; 302 code is ok
 //  die(); // for those who bypass the header, see http://thedailywtf.com/Articles/WellIntentioned-Destruction.aspx
 	
@@ -1385,7 +1384,7 @@ else if (isset($_GET['wiki'])) {
 	}
 	if(!isTwInWorkingFolder($_GET['wiki'])) {
 		showMtsPage("<p>\"" . $_GET['wiki'] . "\" isn't a TiddlyWiki of supported version in the server working folder.</p>"
-		   . "<p>Please visit <a href=\"$wikisLink\">the list of wikis</a> to pick an existing one.</p>",'',404);
+		   . "<p>You can pick a supported one on the <a href='$optionsLink'>options page</a>.</p>",'',404);
 		return;
 	}
 	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
