@@ -117,6 +117,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ introduce single wiki mode
 	1.6.2
 	+ refactored injected js to fix exotic issues and to support custom saving (encrypted etc),
 	  governed by config.options.chkAvoidGranulatedSaving
