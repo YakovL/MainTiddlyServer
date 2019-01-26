@@ -85,6 +85,14 @@ main p, main section>ul, main section>ol {
 main ul, main ol { padding-left: 1.6em; }
 main a { color: #777777; }
 
+.donation-form {
+	display: flex;
+}
+.donation-form__image {
+	height: 2.5em;
+	margin: 1em auto;
+}
+
 .wrapper__footer {
 	background-color: black;
 	color: var(--main-gray);
