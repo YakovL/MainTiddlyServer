@@ -531,7 +531,7 @@ function removeInjectedJsFromWiki($content) {
 }
 function getTwVersion($wikiFileText){
 	
-	preg_match('/version = {title: "TiddlyWiki", major: (\d+), minor: (\d+), revision: (\d+)/', $wikiFileText, $match);
+	preg_match('/version = {\s*title: "TiddlyWiki", major: (\d+), minor: (\d+), revision: (\d+)/', $wikiFileText, $match);
 	return $match;
 }
 function hasSupportedTwVersion($wikiFileText){
@@ -540,7 +540,7 @@ function hasSupportedTwVersion($wikiFileText){
 	if(!$versionParts)
 		return false;
 	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
-	if ($version < 20605 or $version > 20901)
+	if ($version < 20605 or $version > 20902)
 		return false;
 	return true;
 }
