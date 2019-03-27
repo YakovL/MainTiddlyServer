@@ -120,6 +120,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
+	+ reduced the number of injected JS parts
 	1.6.2
 	+ refactored injected js to fix exotic issues and to support custom saving (encrypted etc),
 	  governed by config.options.chkAvoidGranulatedSaving
@@ -467,6 +468,8 @@ function implementRequestProxying() {
 // we need store and other stuff to be defined when we implementOnlineSaving
 var noOnlineSaving_loadPlugins = loadPlugins;
 loadPlugins = function() {
+
+	config.options.chkHttpReadOnly = false;
 	
 	implementRequestProxying();
 	
@@ -509,9 +512,6 @@ function injectJsToWiki($wikiData) {
 	$sc2 = strpos($wikiData, "clearMessage", $sc);
 	$wikiData = substr($wikiData, 0, $sc2) . "return saveOnlineChanges();" . substr($wikiData, $sc2);
 
-	// patch the file to allow http saving
-	$wikiData = preg_replace('/chkHttpReadOnly: true,/', 'chkHttpReadOnly: false,', $wikiData);
-	
 	return $wikiData;
 }
 function removeInjectedJsFromWiki($content) {
@@ -525,8 +525,6 @@ function removeInjectedJsFromWiki($content) {
 	
 	$content = preg_replace('/return saveOnlineChanges\(\);/', '', $content);
 
-	$content = preg_replace('/chkHttpReadOnly: false,/', 'chkHttpReadOnly: true,', $content);
-	
 	return $content;
 }
 function getTwVersion($wikiFileText){
