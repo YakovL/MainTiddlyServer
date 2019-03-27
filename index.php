@@ -871,11 +871,12 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 		file_put_contents('test_incremental_saving__was.txt',$wikiText);
 	}
 	
+	$LINEBREAK = '(?:\r?\n)';
 	// split html into parts before store, store itself and after store (using DOMDocument fails with TWc, see test_dom.php)
-	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>\n?/'; //<div id="storeArea">\n
+	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>'.$LINEBREAK.'?/'; //<div id="storeArea">\n
 	$posOpeningDiv = preg_offset($re_store_area_div,$wikiText,true); // strpos works faster
 	 // this is seemingly different from posOpeningDiv in TW
-	$re_store_area_end = '/\n?<\/[dD][iI][vV]>\n<!--POST-STOREAREA-->/'; // \n</div>\n<!--POST-STOREAREA-->
+	$re_store_area_end = '/'.$LINEBREAK.'?<\/[dD][iI][vV]>'.$LINEBREAK.'<!--POST-STOREAREA-->/'; // \n</div>\n<!--POST-STOREAREA-->
 	$posClosingDiv = preg_offset($re_store_area_end,$wikiText,false);
 	 // this may be different from posClosingDiv in TW
 	$storePart       = substr($wikiText,$posOpeningDiv,$posClosingDiv - $posOpeningDiv);
@@ -928,7 +929,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 		file_put_contents('test_store_area_locating.txt',print_r($tiddlersMap,true));
 	}
 	// pack updated tiddlers back into DOM + clear memory from the tiddlersMap
-	$updatedStorePart = implode("\n",(array) $tiddlersMap); //works without type change part: (array)
+	$updatedStorePart = implode("\n",(array) $tiddlersMap); //works without type change (array)
 	unset($tiddlersMap); // no longer needed, spare memory
 
 	// update title if necessary
@@ -939,14 +940,14 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	// update markup blocks
  	if($changes->markupBlocks)
 		foreach($changes->markupBlocks as $blockName => $blockValue) {
-			$start = "<!--$blockName-START-->\n";
-			$end   = "\n<!--$blockName-END-->";
-			$substitute = $start . $blockValue . $end;
-			$blockPattern = "#$start.*?$end#s"; // s: . = any symbol
+			$start = "<!--$blockName-START-->";
+			$end   = "<!--$blockName-END-->";
+			$substitute = $start ."\n". $blockValue ."\n". $end;
+			$blockPattern = "#$start$LINEBREAK.*?$LINEBREAK$end#s"; // "s" flag: . = any symbol
 			if($blockName == "POST-SCRIPT")
-				$afterStorePart =  preg_replace($blockPattern,$substitute,$afterStorePart);
+				$afterStorePart =  preg_replace($blockPattern, $substitute, $afterStorePart);
 			else
-				$beforeStorePart = preg_replace($blockPattern,$substitute,$beforeStorePart);
+				$beforeStorePart = preg_replace($blockPattern, $substitute, $beforeStorePart);
 		}
 
 	if($debug_mode) {
