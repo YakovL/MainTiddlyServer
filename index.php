@@ -485,12 +485,12 @@ loadPlugins = function() {
 function loadOptions() {
 
 	global $optionsFolder;
-	$old_path = $optionsFolder . "/" . "options.txt";
-	$new_path = $optionsFolder . "/" . "mts_options.json";
-	if (file_exists($new_path))
-		return json_decode(file_get_contents($new_path),true);
-	if (file_exists($old_path))
-		return unserialize(file_get_contents($old_path));
+	$oldPath = $optionsFolder . "/" . "options.txt";
+	$newPath = $optionsFolder . "/" . "mts_options.json";
+	if (file_exists($newPath))
+		return json_decode(file_get_contents($newPath), true);
+	if (file_exists($oldPath))
+		return unserialize(file_get_contents($oldPath));
 	return null;
 }
 function saveOptions($options) {
@@ -575,35 +575,34 @@ function isInWokringFolder($file_name_in_current_workingFolder) { // file or fol
 	global $workingFolder;
 	if(!is_dir($workingFolder)) // workingFolder may be unavailable
 		return false;
-	$files_and_folders = scandir($workingFolder); // files' and folders' names in current directory
-	return in_array($file_name_in_current_workingFolder, $files_and_folders);
+	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
+	return in_array($file_name_in_current_workingFolder, $filesAndFolders);
 }
+// checks whether it's a tw-like html from the current working folder
 function isTwInWorkingFolder($file_name_in_current_workingFolder) {
-	// check whether it's a tw-like html from the current working folder
 
 	global $workingFolder;
 	if(!isInWokringFolder($file_name_in_current_workingFolder))
 		return false;
-	$full_path = $workingFolder . "/" . $file_name_in_current_workingFolder;
-	if(!isTwLike($full_path))
+	$fullPath = $workingFolder . "/" . $file_name_in_current_workingFolder;
+	if(!isTwLike($fullPath))
 		return false;
-	
 	return true;
 }
 function getListOfTwLikeHtmls() {
 
 	global $workingFolder;
 	$htmls = [];
-	$files_and_folders = scandir($workingFolder); // files' and folders' names in current directory
-	foreach ($files_and_folders as $i => $f) {
-		$full_path = $workingFolder . "/" . $f;
-		if(isTwLike($full_path))
-			$htmls[] = $f;
+	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
+	foreach ($filesAndFolders as $name) {
+		$fullPath = $workingFolder . "/" . $name;
+		if(isTwLike($fullPath))
+			$htmls[] = $name;
 	}
 	return $htmls;
 };
-function showMtsPage($html,$title = '',$httpStatus = 200) {
-	
+function showMtsPage($html, $title = '', $httpStatus = 200) {
+
 	global $options, $optionsLink, $baselink, $wikisLink, $version;
 	
 	http_response_code($httpStatus);
@@ -682,7 +681,7 @@ function showMtsPage($html,$title = '',$httpStatus = 200) {
 	echo '<footer><a href="https://yakovl.github.io/MainTiddlyServer/" target="_blank">MainTiddlyServer v'.$version.'</a></footer>';
 	echo '</div></body></html>';
 }
-function showOptionsPage(){
+function showOptionsPage() {
 	
 	global $options, $optionsLink;
 	
@@ -698,7 +697,7 @@ function showOptionsPage(){
 		}
 	</script>';
 	
-	$output .= '<form class="options-form" name="input" action="'.$optionsLink.'" method="post">' .
+	$output .= '<form class="options-form" name="input" action="' . $optionsLink . '" method="post">' .
 				 '<input type="hidden" name="options">';
 	
 	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
@@ -716,11 +715,12 @@ function showOptionsPage(){
 	// wiki
 	$files = getListOfTwLikeHtmls();
 	$output .= '<p>Use this wiki file: <select name="wikiname">';
-	foreach ($files as $f) {
+	foreach ($files as $fileName) {
 	
-		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $f)) // introduced in MicroTiddlyServer to avoid showing backups
+		// avoid showing backups (legacy of MicroTiddlyServer)
+		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
 			continue;
-		$output .= "<option value=\"$f\"" . ($f == $options['wikiname'] ? " selected" : "") . ">$f</option>\n";
+		$output .= "<option value=\"$fileName\"" . ($fileName == $options['wikiname'] ? " selected" : "") . ">$fileName</option>\n";
 	}
 	$output .= '</select></p>';
 	$output .= '<p><label><input type="checkbox" '.($options['single_wiki_mode'] ? 'checked=checked' : '').
@@ -747,12 +747,10 @@ function showOptionsPage(){
 	$output .= '<p><button type="submit">Save</button></p>';
 	$output .= '</form>';
 
-	showMtsPage($output,"Options");
+	showMtsPage($output, "Options");
 }
-function showWikisList(){
-	
-	global $baselink;
-	
+function showWikisList() {
+
 	// for screens large enough (in fact, for devices with keyboard),
 	// visualize selection and allow navigation via keyboard
 	$output = '<style>
@@ -772,9 +770,8 @@ function showWikisList(){
 	 "<p>Available TiddlyWikis:</p>" .
 	 '<ul class="wikis-list__list">';
 	 $htmls = getListOfTwLikeHtmls();
-	 foreach ($htmls as $i => $f)
-		//# add helper to build ?wiki=.. links (escaping +, adding working folder etc), .oO routing
-		$output .= '<li class="wikis-list__item"><a href="' . $baselink . '?wiki=' . str_replace('+','%2B',$f) . "\">$f</a></li>\n";
+	 foreach ($htmls as $name)
+		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
 	"<p class='keyboard-only'>You can use keyboard to navigate (&uarr;/&darr;/home/end) between wikis and open them (enter).</p>" .
@@ -808,13 +805,13 @@ function showWikisList(){
 		//# make it scroll when the first/last item is selected and the key suggests we have to scroll further
 	};
 </script>';
-	showMtsPage($output,"Wikis");
+	showMtsPage($output, "Wikis");
 }
 // serves TW "properly" but for correct saving requires that
 // either saved options contain the location of the current TW
 // or TW is served via ?wiki=wikiname.html request
 function showTW($fullPath = '', $pathToShowOnError) {
-	
+
 	global $version, $options, $optionsLink, $workingFolder;
 	
 	$wikiName = $options['wikiname'];
@@ -1017,14 +1014,14 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
 	return 0;
 }
-function getImageFromBase64AndSave($data,$path,$name)
+function getImageFromBase64AndSave($data, $path, $name)
 {
 	$imgBase64String = $data;
-	$separatorPosition = strpos($imgBase64String,",");
+	$separatorPosition = strpos($imgBase64String, ",");
 	//# if($separatorPosition === false)
 	
 	$type = substr($imgBase64String, 0, $separatorPosition);
-	preg_match("/data\:image\/(\w+)\;base64/",$type,$matches);
+	preg_match("/data\:image\/(\w+)\;base64/", $type, $matches);
 	//# if no match..
 	$type = $matches[1];
 	
@@ -1034,19 +1031,19 @@ function getImageFromBase64AndSave($data,$path,$name)
 	// using $type as file extensions is ok for png, jpeg;
 	// for SVGs it will be svg+xml, but will there be SVGs pasted as base64?
 };
-function loadImageByUrlAndSave($url,$path,$name)
+function loadImageByUrlAndSave($url, $path, $name)
 {
-	$url = filter_var($url,FILTER_SANITIZE_URL);
+	$url = filter_var($url, FILTER_SANITIZE_URL);
 	$img = file_get_contents($url);
 	$type = "png";
 	//# check for request errors (see $http_response_header, http://php.net/manual/en/reserved.variables.httpresponseheader.php),
 	//# ensure we got an image, get its type automatically
-	file_put_contents($path . $name . "." . $type,$img);
+	file_put_contents($path . $name . "." . $type, $img);
 };
-function getImageByUriAndSave($url,$path,$name)
+function getImageByUriAndSave($url, $path, $name)
 {
 	// check if $url is base64 or not
-	preg_match("/^data\:/",$url,$isBase64);
+	preg_match("/^data\:/", $url, $isBase64);
 	// make sure $path exists (create the folder if needed)
 	if (!file_exists($path))
 		mkdir($path, 0777, true);
@@ -1054,9 +1051,9 @@ function getImageByUriAndSave($url,$path,$name)
 //		return ..;
 //# if name is not given, create a random one (may be use timestamp)
 	if($isBase64)
-		getImageFromBase64AndSave($data,$path.'/',$name);
+		getImageFromBase64AndSave($data, $path.'/', $name);
 	else
-		loadImageByUrlAndSave($url,$path.'/',$name);
+		loadImageByUrlAndSave($url, $path.'/', $name);
 //# return path to created image on success
 };
 //# function moveAttachedImage($old_path, $new_path)
@@ -1092,6 +1089,12 @@ $portSuffix = $port ? (":".$port) : "";
 $baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
+function getFullWikiLink($nameOrPath) {
+	global $baselink;
+	//# deal with '#' in filename (substitute with %23)
+	//# add adding working folder to the request; .oO routing
+	return $baselink . '?wiki=' . str_replace('+', '%2B', $nameOrPath);
+}
 
 // If this is an AJAX request to save the file, do so, for incremental changes echo 'saved' on success and error on fail
 if (isset($_POST['save']) || isset($_POST['saveChanges']))
@@ -1105,6 +1108,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 		$wikiPath .= $_POST['wiki'];
 	} else { // not sure if this will happen at all
 		echo 'error: "'.$_POST['wiki'].'" is not a valid TiddlyWiki in the working folder';
+		//# send 404?
 		return;
 	}
 
@@ -1189,16 +1193,15 @@ AuthGroupFile /dev/null
 AuthUserFile "' . getcwd() . '/.htpasswd"';
 			$htpasswd = $userName . ':' . crypt($passWord, base64_encode($passWord));
 
+			file_put_contents($serverFolder . "/" . ".htaccess", $htaccess);
+			file_put_contents($serverFolder . "/" . ".htpasswd", $htpasswd);
 			// tell the user the password protection is set
 			$output .= "Username \"$userName\" and Password set<br>";
 			$output .= 'If you forget your password you can delete the .htaccess file through an FTP client to regain access<br>';
-			file_put_contents($serverFolder . "/" . ".htaccess", $htaccess);
-			file_put_contents($serverFolder . "/" . ".htpasswd", $htpasswd);
 		}
 	}
 
-	//# add helper to build ?wiki=.. links (escaping +, adding working folder etc), .oO routing
-	$wikiLink = $baselink . '?wiki=' . str_replace('+','%2B',$options['wikiname']);
+	$wikiLink = getFullWikiLink($options['wikiname']);
 	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$wikiLink'>$wikiLink</a></p>";
 	showMtsPage($output);
 }
@@ -1418,7 +1421,7 @@ else if (isset($_GET['wikis'])) {
 else if (isset($_GET['wiki'])) {
 
 	if(!is_dir($workingFolder)) {
-		showMtsPage("<p>The server working folder is currently unavailable...</p>",'',404);
+		showMtsPage("<p>The server working folder is currently unavailable...</p>", '', 404);
 		//# make more helpful (what working folder is used? show at least ~name.. what to do?)
 		return;
 	}
