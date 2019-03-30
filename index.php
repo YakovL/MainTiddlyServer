@@ -117,10 +117,12 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ reduced the number of injected JS parts
+	+ added support of TWs with CRLF linebreaks (for instance, git changes them so)
+	+ made messages about unsupported TW versions more specific and helpful
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
-	+ reduced the number of injected JS parts
 	1.6.2
 	+ refactored injected js to fix exotic issues and to support custom saving (encrypted etc),
 	  governed by config.options.chkAvoidGranulatedSaving
@@ -220,7 +222,7 @@ function saveOnlineGranulatedChanges() {}
 convertUnicodeToFileFormat = function(s) { return config.browser.isIE ? convertUnicodeToHtmlEntities(s) : s; };
 
 function asyncLoadOriginal(onSuccess) {
-	
+
 	// Load the original and proceed on success
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function() {
@@ -241,14 +243,14 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 	var newStore = updateOriginal(original,storePosition,localPath); // new html
 	if(!newStore)
 		return; // don`t notify: updateOriginal alerts already
-	
+
 	var currentPageRequestMatch = (/\?(?:[^&].+)*?(wiki=[^&]+)(&|$)/mg).exec(window.location.search);
 	var currentPageRequest = currentPageRequestMatch ? currentPageRequestMatch[1] : "";
 	var urlEncodedRequestBody = 
 		"save=yes&content=" + encodeURIComponent(newStore)+
 		(currentPageRequest ? "&"+currentPageRequest : "")+
 		(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
-	
+
 	// And save the new document using a HTML POST request
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function()
@@ -470,12 +472,12 @@ var noOnlineSaving_loadPlugins = loadPlugins;
 loadPlugins = function() {
 
 	config.options.chkHttpReadOnly = false;
-	
+
 	implementRequestProxying();
-	
+
 	if(isGranulatedSavingSupported())
 		implementOnlineSaving();
-	
+
 	return noOnlineSaving_loadPlugins.apply(this,arguments);
 }
 ';
@@ -527,20 +529,35 @@ function removeInjectedJsFromWiki($content) {
 
 	return $content;
 }
-function getTwVersion($wikiFileText){
-	
+function getTwVersion($wikiFileText) {
+
 	preg_match('/version = {\s*title: "TiddlyWiki", major: (\d+), minor: (\d+), revision: (\d+)/', $wikiFileText, $match);
 	return $match;
 }
-function hasSupportedTwVersion($wikiFileText){
+define("EARLIEST_TESTED_VERSION", 20605);
+define("LATEST_TESTED_VERSION", 20902);
+function isSupportedTwVersion($versionParts) {
 
-	$versionParts = getTwVersion($wikiFileText);
 	if(!$versionParts)
 		return false;
 	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
-	if ($version < 20605 or $version > 20902)
+	if ($version < EARLIEST_TESTED_VERSION or $version > LATEST_TESTED_VERSION)
 		return false;
 	return true;
+}
+function isNewerUntestedTwVersion($versionParts) {
+
+	if(!$versionParts)
+		return false;
+	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
+	if ($version > LATEST_TESTED_VERSION)
+		return true;
+	return false;
+}
+function hasSupportedTwVersion($wikiFileText) {
+
+	$versionParts = getTwVersion($wikiFileText);
+	return isSupportedTwVersion($versionParts);
 }
 function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 	
@@ -744,6 +761,7 @@ function showWikisList(){
 			.wikis-list__list { display: inline-block; }
 			.wikis-list__item { padding: 0 0.5em; text-align: left; }
 			.keyboard-only { display: none; }
+			/* rough detection of non-touch device */
 			@media screen and (min-width: 700px) {
 				.selected { background-color: #ddddff; }
 				:focus { outline: none; }
@@ -792,14 +810,16 @@ function showWikisList(){
 </script>';
 	showMtsPage($output,"Wikis");
 }
-// serves TW "properly" but for correct saving requires that either saved options contain the location of the current TW
+// serves TW "properly" but for correct saving requires that
+// either saved options contain the location of the current TW
 // or TW is served via ?wiki=wikiname.html request
-function showTW($full_path = '') {
+function showTW($fullPath = '', $pathToShowOnError) {
 	
 	global $version, $options, $optionsLink, $workingFolder;
 	
-	$wikiname = $options['wikiname'];
-	$wikiPath = $full_path ? $full_path : ($workingFolder . "/" . $wikiname);
+	$wikiName = $options['wikiname'];
+	$wikiPath = $fullPath ? $fullPath : ($workingFolder . "/" . $wikiName);
+	if(!$pathToShowOnError) $pathToShowOnError = $wikiName;
 //# if ?wiki=.. is not set and it is not single_wiki_mode, change path to ?wiki=.. (http 30_ redirect?)
 //  header('Location: '.$newURL); // $newURL should be absolute; 302 code is ok
 //  die(); // for those who bypass the header, see http://thedailywtf.com/Articles/WellIntentioned-Destruction.aspx
@@ -807,28 +827,47 @@ function showTW($full_path = '') {
 	// if there's no such file, show that
 	if (!file_exists($wikiPath) || !is_file($wikiPath)) {
 	
-		if (!$wikiname || !$workingFolder) //# check is_dir as well?
+		if (!$wikiName || !$workingFolder) //# check is_dir as well?
 			return showOptionsPage();
 
-		showMtsPage("<p>Error: \"$wikiPath\" does not exist or is not a file.</p>" .
-			"<p>Select a wiki file on the <a href='$optionsLink'>options page</a></p>",'',404);
+		showMtsPage("<p>\"$pathToShowOnError\" does not exist or is not a file in the working folder.</p>" .
+			"<p>Select a wiki file on the <a href='$optionsLink'>options page</a></p>", '', 404);
 		return false;
 	}
 	$wikiData = file_get_contents($wikiPath);
 	
 	// if the version isn't supported, show that
-	if (!hasSupportedTwVersion($wikiData)) {
-	
-		$versionParts = getTwVersion($wikiData);
-		$versionString = $versionParts ? ($versionParts[1] .".". $versionParts[2] .".". $versionParts[3]) : '';
-		showMtsPage(
-			"<p>The TiddlyWiki file \"$wikiPath\" has the version \"$versionString\" which isn't compatible with MainTiddlyServer.</p>" .
-			//# show only the relevant one?
-			"<p>If that's an old version, please try to upgrade it.</p>". //# link to docs? upgrade via MTS?
-			"<p>If that's the newest version not yet supported by MTS, please create an issue ".
-				"<a href='https://github.com/YakovL/MainTiddlyServer/issues'>in the MTS repo</a>.</p>".
-			"<p>You may also select a different wiki file on the <a href='$optionsLink'>options page</a>.</p>"
-		);
+	$versionParts = getTwVersion($wikiData);
+	if (!isSupportedTwVersion($versionParts)) {
+
+		$versionString = $versionParts ? ('the version "'. $versionParts[1] .".". $versionParts[2] .".". $versionParts[3] .'"')
+			: 'an unknown version';
+		$backupWarning = ", but be sure to backup your TW before using the patched MTS.";
+		$selectDifferentSuggestion = "<p>You may also select a different TW file on the <a href='$optionsLink'>options page</a>.</p>";
+		if(isNewerUntestedTwVersion($versionParts))
+			showMtsPage(
+				"<p>The TiddlyWiki file \"$pathToShowOnError\" has $versionString which isn't tested for " .
+				"compatibility with MainTiddlyServer yet. Please try the latest version of MTS.</p>" .
+				//# add link to the download page (/auto update MTS?)
+				//# check newer version of MTS automatically
+				"<p>If it's the latest MTS already, please create an issue " .
+				"<a href='https://github.com/YakovL/MainTiddlyServer/issues'>in the MTS repo</a>. " .
+				"If you really need to make this work quickly, you can open the MTS source and change the " .
+				"LATEST_TESTED_VERSION constant$backupWarning</p>" .
+				//# allow to do this via interface, perhaps right on this page, too
+				$selectDifferentSuggestion, '', 403
+			);
+		else
+			showMtsPage(
+				"<p>The TiddlyWiki file \"$pathToShowOnError\" has $versionString which is probably incompatible with MainTiddlyServer.</p>" .
+				($versionParts ? "<p>You may want to try to upgrade your TW. If you really need to work with " .
+				 "the old version, you may open the MTS source and change the EARLIEST_TESTED_VERSION constant" .
+				 //# allow to do this via interface, perhaps right on this page, too
+				 "$backupWarning It is unknown whether this will work properly.</p>" :
+					"<p>If that's an old version, please try to upgrade it.</p>") .
+					//# add link to docs + to the issues/community forum
+				$selectDifferentSuggestion, '', 403
+			);
 		return false;
 	}
 
@@ -1383,12 +1422,7 @@ else if (isset($_GET['wiki'])) {
 		//# make more helpful (what working folder is used? show at least ~name.. what to do?)
 		return;
 	}
-	if(!isTwInWorkingFolder($_GET['wiki'])) {
-		showMtsPage("<p>\"" . $_GET['wiki'] . "\" isn't a TiddlyWiki of supported version in the server working folder.</p>"
-		   . "<p>You can pick a supported one on the <a href='$optionsLink'>options page</a>.</p>",'',404);
-		return;
-	}
-	showTW($workingFolder . "/" . $_GET['wiki']); // already checks if exists, .. but shows full path in case of error which is not nice
+	showTW($workingFolder . "/" . $_GET['wiki'], $_GET['wiki']);
 } else {
 	if($options['wikiname'])
 		showWikisOrWiki();
