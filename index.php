@@ -559,11 +559,14 @@ function hasSupportedTwVersion($wikiFileText) {
 	$versionParts = getTwVersion($wikiFileText);
 	return isSupportedTwVersion($versionParts);
 }
+function hasHtmlExtension($nameOrPath) {
+	return substr_compare($nameOrPath, ".html", -5, 5) == 0;
+}
 function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 	
-	if(!is_file($file_full_path_and_name)) // no such file (may be folder, not file)
+	if(!hasHtmlExtension($file_full_path_and_name))
 		return false;
-	if(substr_compare($file_full_path_and_name, ".html", -5, 5) != 0) // not html
+	if(!is_file($file_full_path_and_name))
 		return false;
 	$content = file_get_contents($file_full_path_and_name);
 	if(!hasSupportedTwVersion($content)) // not TW
@@ -589,13 +592,12 @@ function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 		return false;
 	return true;
 }
-function getListOfTwLikeHtmls() {
+function getListOfTwLikeHtmls($folder) {
 
-	global $workingFolder;
 	$htmls = [];
-	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
+	$filesAndFolders = scandir($folder);
 	foreach ($filesAndFolders as $name) {
-		$fullPath = $workingFolder . "/" . $name;
+		$fullPath = $folder . "/" . $name;
 		if(isTwLike($fullPath))
 			$htmls[] = $name;
 	}
@@ -683,7 +685,7 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 }
 function showOptionsPage() {
 	
-	global $options, $optionsLink;
+	global $options, $optionsLink, $workingFolder;
 	
 	$output = '<style>
 		.options-form__password-panel { padding: 0 1em; }
@@ -713,7 +715,7 @@ function showOptionsPage() {
 	//# this should cause updating of the wikis dropdown.. or the latter should be removed from ?options
 	
 	// wiki
-	$files = getListOfTwLikeHtmls();
+	$files = getListOfTwLikeHtmls($workingFolder);
 	$output .= '<p>Use this wiki file: <select name="wikiname">';
 	foreach ($files as $fileName) {
 	
@@ -751,6 +753,8 @@ function showOptionsPage() {
 }
 function showWikisList() {
 
+	global $workingFolder;
+
 	// for screens large enough (in fact, for devices with keyboard),
 	// visualize selection and allow navigation via keyboard
 	$output = '<style>
@@ -769,7 +773,7 @@ function showWikisList() {
 	'<div class="wikis-list">'.
 	 "<p>Available TiddlyWikis:</p>" .
 	 '<ul class="wikis-list__list">';
-	 $htmls = getListOfTwLikeHtmls();
+	 $htmls = getListOfTwLikeHtmls($workingFolder);
 	 foreach ($htmls as $name)
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
