@@ -810,7 +810,7 @@ function showWikisList() {
 // serves TW "properly" but for correct saving requires that
 // either saved options contain the location of the current TW
 // or TW is served via ?wiki=wikiname.html request
-function showTW($fullPath = '', $pathToShowOnError) {
+function showTW($fullPath = '', $pathToShowOnError = '') {
 
 	global $version, $options, $optionsLink, $workingFolder;
 	
