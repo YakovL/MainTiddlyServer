@@ -232,6 +232,11 @@ function asyncLoadOriginal(onSuccess) {
 	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
 	xmlhttp.send();
 };
+function getCurrentTwRequestPart() {
+
+	var currentPageRequestMatch = (/[\?&](wiki=[^&]+)(&|$)/mg).exec(window.location.search);
+	return currentPageRequestMatch ? currentPageRequestMatch[1] : "";
+}
 function updateAndSendMain(original,onSuccess) { //rather current HTML than original
 
 	// Skip any comment at the start of the file
@@ -244,8 +249,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 	if(!newStore)
 		return; // don`t notify: updateOriginal alerts already
 
-	var currentPageRequestMatch = (/\?(?:[^&].+)*?(wiki=[^&]+)(&|$)/mg).exec(window.location.search);
-	var currentPageRequest = currentPageRequestMatch ? currentPageRequestMatch[1] : "";
+	var currentPageRequest = getCurrentTwRequestPart();
 	var urlEncodedRequestBody = 
 		"save=yes&content=" + encodeURIComponent(newStore)+
 		(currentPageRequest ? "&"+currentPageRequest : "")+
@@ -405,8 +409,7 @@ function implementOnlineSaving() {
 		var dataToSend = JSON.stringify(store.getChanges());
 		if(dataToSend == "{}")
 			return;
-		var currentPageRequestMatch = (/\?(?:[^&].+)*?(wiki=[^&]+)(&|$)/mg).exec(window.location.search),
-		    currentPageRequest = currentPageRequestMatch ? currentPageRequestMatch[1] : "";
+		var currentPageRequest = getCurrentTwRequestPart();
 		var urlEncodedRequestBody = "saveChanges="+encodeURIComponent(dataToSend)+
 			(currentPageRequest ? "&"+currentPageRequest : "")+
 			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
