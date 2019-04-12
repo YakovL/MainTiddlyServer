@@ -234,8 +234,14 @@ function asyncLoadOriginal(onSuccess) {
 };
 function getCurrentTwRequestPart() {
 
-	var currentPageRequestMatch = (/[\?&](wiki=[^&]+)(&|$)/mg).exec(window.location.search);
-	return currentPageRequestMatch ? currentPageRequestMatch[1] : "";
+	var queryParts = window.location.search.substr(1).split("&"),
+	    twQueryParts = []; // keep only wiki= and folder=
+
+	for(var i = 0; i < queryParts.length; i++)
+		if(queryParts[i].substr(0,5) == "wiki=" || queryParts[i].substr(0,7) == "folder=")
+			twQueryParts.push(queryParts[i]);
+	return twQueryParts.join("&");
+	//# or just return the whole window.location.search ?
 }
 function updateAndSendMain(original,onSuccess) { //rather current HTML than original
 
@@ -1077,7 +1083,12 @@ define(DEFAULT_DATAFOLDER_PATH, ".");
 $dataFolders = $options['dataFolders'];
 if(!$dataFolders[DEFAULT_DATAFOLDER_NAME])
 	$dataFolders[DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH; //# disallow overwriting?
-// folder choice:
+// folder choice (on any request):
+$requestedFolder = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
+if($dataFolders[$requestedFolder])
+	$options['workingFolderName'] = $requestedFolder;
+else
+	; //# notify user somehow!
 if(!$options['workingFolderName'])
 	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
 if(!array_key_exists($options['workingFolderName'],$dataFolders))
@@ -1097,10 +1108,14 @@ $baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCR
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 function getFullWikiLink($nameOrPath) {
-	global $baselink;
+	global $baselink, $options;
 	//# deal with '#' in filename (substitute with %23)
-	//# add adding working folder to the request; .oO routing
-	return $baselink . '?wiki=' . str_replace('+', '%2B', $nameOrPath);
+	if($options['single_wiki_mode'])
+		return $baselink;
+	$link = $baselink . '?';
+	if($options['workingFolderName'] && count($options['dataFolders']) > 1)
+		$link .= 'folder=' . $options['workingFolderName'] . '&';
+	return $link . 'wiki=' . str_replace('+', '%2B', $nameOrPath);
 }
 
 // If this is an AJAX request to save the file, do so, for incremental changes echo 'saved' on success and error on fail
@@ -1153,8 +1168,8 @@ else if (isset($_POST['options']))
 			unset($options[$name]); // https://stackoverflow.com/a/25748033/3995261
 	}
 
-	//# use $_POST['foldername']: check if is among dataFolders, set if is
-	
+	// $_REQUEST['folder'] is processed "globally" (see above)
+
 	// Make sure the selected wiki file is really in our directory; set it
 	if (!isInWokringFolder($_POST['wikiname']))
 	//if (strpos(realpath($_POST['wikiname']), getcwd()) === FALSE)
