@@ -797,8 +797,8 @@ function showWikisList() {
 	$output = '<style>
 			p, ul { margin: 0.5em 0; }
 			.wikis-list { text-align: center; }
-			.wikis-list__list { display: inline-block; }
-			.wikis-list__item { padding: 0 0.5em; text-align: left; }
+			.wikis-list__list { display: inline-block; padding-left: 0; }
+			.wikis-list__item { text-align: left; padding: 0 0.5em; list-style: none; }
 			.keyboard-only { display: none; }
 			/* rough detection of non-touch device */
 			@media screen and (min-width: 700px) {
