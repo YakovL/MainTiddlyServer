@@ -120,6 +120,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ reduced the number of injected JS parts
 	+ added support of TWs with CRLF linebreaks (for instance, git changes them so)
 	+ made messages about unsupported TW versions more specific and helpful
+	+ improved paddings in the list of ?wikis for touch devices
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -777,6 +778,9 @@ function showWikisList() {
 				.selected { background-color: #ddddff; }
 				:focus { outline: none; }
 				.keyboard-only { display: block; }
+			}
+			@media screen and (max-width: 700px) {
+				.wikis-list__item { padding-top: 0.25em; padding-bottom: 0.25em; }
 			}
 		</style>' . //# refine the min-device-width value (ps,ph)
 	'<div class="wikis-list">'.
