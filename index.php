@@ -1261,7 +1261,7 @@ AuthUserFile "' . getcwd() . '/.htpasswd"';
 else if (isset($_GET['options'])) {
 	showOptionsPage();
 }
-else if (isset($_GET['proxy_to']))
+else if (isset($_REQUEST['proxy_to']))
 {
 //# test, test, test, including urls without protocol (with :?//), with custom port
  // what if we fail to open an html because it's too big? what behaviour we'll get?
@@ -1316,7 +1316,7 @@ else if (isset($_GET['proxy_to']))
 	//# when we introduce different working folders, relative addresses should be relative to workingFolder, not MTS
 
 	// parse requested url
-	$requestedUrl = $_GET['proxy_to']; // decoded via urldecode, so basically same as request_url in hijacked httpReq
+	$requestedUrl = $_REQUEST['proxy_to']; // decoded via urldecode, so basically same as request_url in hijacked httpReq
 	// parse_url → array with keys (some may be omitted): scheme, host, port, user, pass, path, query, fragment
 	$requestedUrlParts = parse_url($requestedUrl);
 	$requestedFolderAndFile = getFolderAndFileNameFromPath($requestedUrlParts['path']);
