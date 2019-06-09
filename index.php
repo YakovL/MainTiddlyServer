@@ -618,16 +618,27 @@ function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 		return false;
 	return true;
 }
-function getListOfTwLikeHtmls($folder) {
+function getListOfHtmls($folder) {
 
 	$htmls = [];
 	$filesAndFolders = scandir($folder);
 	foreach ($filesAndFolders as $name) {
 		$fullPath = $folder . "/" . $name;
-		if(isTwLike($fullPath))
+		if(is_file($fullPath) && hasHtmlExtension($fullPath))
 			$htmls[] = $name;
 	}
 	return $htmls;
+};
+function getListOfTwLikeHtmls($folder) {
+
+	$twLikeHtmls = [];
+	$htmls = getListOfHtmls($folder);
+	foreach ($htmls as $name) {
+		$fullPath = $folder . "/" . $name;
+		if(isTwLike($fullPath))
+			$twLikeHtmls[] = $name;
+	}
+	return $twLikeHtmls;
 };
 function showMtsPage($html, $title = '', $httpStatus = 200) {
 
