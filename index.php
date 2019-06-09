@@ -735,7 +735,7 @@ function showOptionsPage() {
 	}
 	$output .= '</select></p>';
 	$output .= '<p><label><input type="checkbox" '.($options['single_wiki_mode'] ? 'checked=checked' : '').
-				'name="single_wiki_mode">single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
+				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
 	$output .= '<div class="options-form__password-panel">' .
