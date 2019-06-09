@@ -300,7 +300,7 @@ function getOriginalUrl() {
 	return document.location.protocol + "//" + document.location.host + document.location.pathname;
 };
 
-function implementOnlineSaving() {
+function setupGranulatedSaving() {
 
 	TiddlyWiki.prototype.rememberStoredState = function(title,markupBlocks,externalizedTiddlers) {
 		// perhaps a more correct term would be "stored-tracking"
@@ -448,7 +448,7 @@ function implementOnlineSaving() {
 	}
 	//  ...and remove it afterwards for backward compability
 //# this probably should be fixed in the core, though (at least we can hijack getPageTitle)
-} //implementOnlineSaving
+} //setupGranulatedSaving
 
 function implementRequestProxying() {
 	window.config.orig_noProxy_httpReq = httpReq; //# or use window.httpReq?
@@ -477,7 +477,7 @@ function implementRequestProxying() {
 	};
 }
 
-// we need store and other stuff to be defined when we implementOnlineSaving
+// we need store and other stuff to be defined when we setupGranulatedSaving
 var noOnlineSaving_loadPlugins = loadPlugins;
 loadPlugins = function() {
 
@@ -486,7 +486,7 @@ loadPlugins = function() {
 	implementRequestProxying();
 
 	if(isGranulatedSavingSupported())
-		implementOnlineSaving();
+		setupGranulatedSaving();
 
 	return noOnlineSaving_loadPlugins.apply(this,arguments);
 }
@@ -1042,7 +1042,7 @@ function getImageFromBase64AndSave($data, $path, $name)
 	//# if no match..
 	$type = $matches[1];
 	
-	$imgBase64String = substr($imgBase64String, $separatorPosition+1);
+	$imgBase64String = substr($imgBase64String, $separatorPosition + 1);
 	$imgString = base64_decode($imgBase64String);
 	file_put_contents($path . $name . '.' . $type, $imgString);
 	// using $type as file extensions is ok for png, jpeg;
