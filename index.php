@@ -115,6 +115,13 @@ You will then be asked to perform some initial configuration, after which you ca
 	- implement non-\w containing passwords (or improve ~visibility of the notification) [either non-Apache or non-crypt solution]
 	- fix: not all letters of password are used (since crypt uses only the first 8 ones) [either non-Apache or non-crypt solution]
 	
+	refactoring:
+	- add lingo for server, move interface strings there and those in injected js – to TW's lingo
+	  also store links to MTS site and repo in a similar central place
+	- separate "model" and "controller" fully; then separate "controller" and "view"
+	- get rid of ugly ids un and pw (should be different from name s at least)
+	- turn $options into Config singleton (with setters allowing to change only options meant to be changable via UI)
+	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
 	+ reduced the number of injected JS parts
@@ -233,14 +240,23 @@ function asyncLoadOriginal(onSuccess) {
 	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
 	xmlhttp.send();
 };
+function getQueryParts() {
+
+	var queryArray = window.location.search.substr(1).split("&"), queryMap = {};
+	while(queryArray.length) {
+		var nameAndValue = queryArray.pop().split("=");
+		queryMap[nameAndValue[0]] = nameAndValue[1];
+	}
+	return queryMap;
+}
 function getCurrentTwRequestPart() {
 
-	var queryParts = window.location.search.substr(1).split("&"),
+	var queryMap = getQueryParts(),
 	    twQueryParts = []; // keep only wiki= and folder=
+	for(var key in { wiki:1, folder:1 })
+		if(queryMap[key])
+			twQueryParts.push(key +"="+ queryMap[key]);
 
-	for(var i = 0; i < queryParts.length; i++)
-		if(queryParts[i].substr(0,5) == "wiki=" || queryParts[i].substr(0,7) == "folder=")
-			twQueryParts.push(queryParts[i]);
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
