@@ -128,6 +128,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ added support of TWs with CRLF linebreaks (for instance, git changes them so)
 	+ made messages about unsupported TW versions more specific and helpful
 	+ improved paddings in the list of ?wikis for touch devices
+	+ fixed lack of message when non-granulated saving fails to reach server on the stage of loading original
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -234,8 +235,12 @@ function asyncLoadOriginal(onSuccess) {
 	// Load the original and proceed on success
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function() {
-		if (this.readyState == 4 && this.status == 200)
-			onSuccess(this.responseText);
+		if (this.readyState == 4) {
+			if(this.status == 200)
+				onSuccess(this.responseText);
+			else
+				displayMessage("Error while saving, failed to reach the server and load original, status: "+ this.status);
+		}
 	}
 	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
 	xmlhttp.send();
@@ -290,7 +295,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 					displayMessage("Error while saving. Server:\n"+this.responseText);
 			}
 			else
-				displayMessage("Error while saving, failed to reach the server, status: "+this.status);
+				displayMessage("Error while saving, failed to reach the server, status: "+ this.status);
 		}
 	}
 	xmlhttp.open("POST", getOriginalUrl(), true);
@@ -303,7 +308,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 			else
 				displayMessage("Error while saving. Server:\n"+responseText);
 		} else
-			displayMessage("Error while saving, failed to reach the server, status: "+xhr.status);
+			displayMessage("Error while saving, failed to reach the server, status: "+ xhr.status);
 	},null,null,urlEncodedRequestBody);*/
 };
 function confirmMainSaved() {
