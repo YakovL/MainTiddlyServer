@@ -498,19 +498,24 @@ function implementRequestProxying() {
 	};
 }
 
-// we need store and other stuff to be defined when we setupGranulatedSaving
-var noOnlineSaving_loadPlugins = loadPlugins;
-loadPlugins = function() {
+// we need store and other stuff to be defined when we setupGranulatedSaving;
+// chkHttpReadOnly should be set before calculating readOnly
+var noOnlineSaving_invokeParamifier = invokeParamifier;
+invokeParamifier = function(params, handler) {
 
-	config.options.chkHttpReadOnly = false;
+	if(handler == "onload" && !window.mtsPatch) {
+		window.mtsPatch = true;
 
-	implementRequestProxying();
+		config.options.chkHttpReadOnly = false;
 
-	if(isGranulatedSavingSupported())
-		setupGranulatedSaving();
+		implementRequestProxying();
 
-	return noOnlineSaving_loadPlugins.apply(this,arguments);
-}
+		if(isGranulatedSavingSupported())
+			setupGranulatedSaving();
+	}
+
+	return noOnlineSaving_invokeParamifier.apply(this,arguments);
+};
 ';
 
 function loadOptions() {
