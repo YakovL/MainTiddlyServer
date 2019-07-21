@@ -570,7 +570,7 @@ function getTwVersion($wikiFileText) {
 	preg_match('/version = {\s*title: "TiddlyWiki", major: (\d+), minor: (\d+), revision: (\d+)/', $wikiFileText, $match);
 	return $match;
 }
-define("EARLIEST_TESTED_VERSION", 20605);
+define("EARLIEST_TESTED_VERSION", 20600);
 define("LATEST_TESTED_VERSION", 20902);
 function isSupportedTwVersion($versionParts) {
 
