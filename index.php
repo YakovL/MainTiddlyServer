@@ -1118,8 +1118,8 @@ $optionsFolder = $serverFolder;
 $options = loadOptions();
 
 // choose $workingFolder among $dataFolders
-define(DEFAULT_DATAFOLDER_NAME, "main");
-define(DEFAULT_DATAFOLDER_PATH, ".");
+define("DEFAULT_DATAFOLDER_NAME", "main");
+define("DEFAULT_DATAFOLDER_PATH", ".");
 // available folders
 $dataFolders = $options['dataFolders'];
 if(!$dataFolders[DEFAULT_DATAFOLDER_NAME])
