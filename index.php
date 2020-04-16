@@ -1154,7 +1154,7 @@ function getFullWikiLink($nameOrPath) {
 	if($options['single_wiki_mode'])
 		return $baselink;
 	$link = $baselink . '?';
-	if($options['workingFolderName'] && count($options['dataFolders']) > 1)
+	if($options['workingFolderName'] && count((array)$options['dataFolders']) > 1)
 		$link .= 'folder=' . $options['workingFolderName'] . '&';
 	return $link . 'wiki=' . str_replace('+', '%2B', $nameOrPath);
 }
