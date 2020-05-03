@@ -129,6 +129,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ made messages about unsupported TW versions more specific and helpful
 	+ improved paddings in the list of ?wikis for touch devices
 	+ fixed lack of message when non-granulated saving fails to reach server on the stage of loading original
+	+ fixed conflicts of simultaneous proxied requests from different working folders
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -485,7 +486,11 @@ function implementRequestProxying() {
 
 		var proxy_url = getOriginalUrl(), // back to MTS
 		    request_url = url,
+		    currentTwRequestParts = getCurrentTwRequestPart().split("&"),
 		    proxy_content = "proxy_to=" + encodeURIComponent(request_url);
+		for(var i = 0; i < currentTwRequestParts.length; i++)
+			if(currentTwRequestParts[i].indexOf("folder=") == 0)
+				proxy_content += "&" + currentTwRequestParts[i];
 
 		// change agruments to make request to MTS` proxy instead:
 		// just add request_url to the request body and send to MTS
