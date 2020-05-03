@@ -222,7 +222,7 @@ function saveOnlineNonGranulatedChanges() {
 
 	asyncLoadOriginal(function(original){
 		// on successful original load
-		updateAndSendMain(original,confirmMainSaved);
+		updateAndSendMain(original, confirmMainSaved);
 	});
 };
 function saveOnlineGranulatedChanges() {}
@@ -266,7 +266,7 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function updateAndSendMain(original,onSuccess) { //rather current HTML than original
+function updateAndSendMain(original, onSuccess) { //rather current HTML than original
 
 	// Skip any comment at the start of the file
 	var documentStart = original.indexOf("<!DOCTYPE");
@@ -274,7 +274,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 
 	var storePosition = locateStoreArea(original);
 	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
-	var newStore = updateOriginal(original,storePosition,localPath); // new html
+	var newStore = updateOriginal(original, storePosition, localPath); // new html
 	if(!newStore)
 		return; // don`t notify: updateOriginal alerts already
 
@@ -302,7 +302,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 	xmlhttp.open("POST", getOriginalUrl(), true);
 	xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 	xmlhttp.send(urlEncodedRequestBody);
-	/*httpReq("POST",getOriginalUrl(),function(success,params,responseText,url,xhr){
+	/*httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr){
 		if(success) {
 			if(responseText == "saved")
 				onSuccess();
@@ -310,7 +310,7 @@ function updateAndSendMain(original,onSuccess) { //rather current HTML than orig
 				displayMessage("Error while saving. Server:\n"+responseText);
 		} else
 			displayMessage("Error while saving, failed to reach the server, status: "+ xhr.status);
-	},null,null,urlEncodedRequestBody);*/
+	}, null, null, urlEncodedRequestBody);*/
 };
 function confirmMainSaved() {
 	// like in saveMain
@@ -324,7 +324,7 @@ function getOriginalUrl() {
 
 function setupGranulatedSaving() {
 
-	TiddlyWiki.prototype.rememberStoredState = function(title,markupBlocks,externalizedTiddlers) {
+	TiddlyWiki.prototype.rememberStoredState = function(title, markupBlocks, externalizedTiddlers) {
 		// perhaps a more correct term would be "stored-tracking"
 		
 		if(title !== null)
@@ -341,7 +341,7 @@ function setupGranulatedSaving() {
 	//  for encrypted vault support; upgrading support?
 
 	TiddlyWiki.prototype.markupBlocksMap = {
-		
+
 		MarkupPreHead:  "PRE-HEAD",
 		MarkupPostHead: "POST-HEAD",
 		MarkupPreBody:  "PRE-BODY",
@@ -349,25 +349,25 @@ function setupGranulatedSaving() {
 	};
 
 	TiddlyWiki.prototype.getExternalizedMarkupBlocks = function() {
-	
+
 		var blockValues = {};
 		for(var tiddlerName in this.markupBlocksMap) {
-		
+
 			// apadted from replaceChunk
 			blockValues[tiddlerName] =
-				convertUnicodeToFileFormat(this.getRecursiveTiddlerText(tiddlerName,""));
+				convertUnicodeToFileFormat(this.getRecursiveTiddlerText(tiddlerName, ""));
 		}
 		return blockValues;
 	};
 	TiddlyWiki.prototype.getExternalizedTitle = function() {
-		
+
 		// for now, we only support title updating for the main store
 		return this !== store ? null : convertUnicodeToFileFormat(getPageTitle()).htmlEncode()
 	};
 	TiddlyWiki.prototype.getExternalizedTiddlers = function() {
-		
+
 		var externalizedTiddlers = {}, saver = this.getSaver();
-		this.forEachTiddler(function(title,tiddler){
+		this.forEachTiddler(function(title, tiddler) {
 			if(!tiddler.doNotSave())
 				externalizedTiddlers[title] = saver.externalizeTiddler(this,tiddler);
 		});
@@ -394,10 +394,10 @@ function setupGranulatedSaving() {
 		// hash by title of "deleted"/{added:externalizedText}/{changed:externalizedText}
 
 		var saver = this.getSaver();
-		this.forEachTiddler(function(title,tiddler){
-			
+		this.forEachTiddler(function(title, tiddler) {
+
 			if(tiddler.doNotSave()) return;
-			var currentExternalizedText = saver.externalizeTiddler(this,tiddler);
+			var currentExternalizedText = saver.externalizeTiddler(this, tiddler);
 			if(!this.storedTiddlers[title]) {
 				changedTiddlers[title] = { added:currentExternalizedText };
 				return;
@@ -443,7 +443,7 @@ function setupGranulatedSaving() {
 			(currentPageRequest ? "&"+currentPageRequest : "")+
 			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
 	
-		httpReq("POST",getOriginalUrl(),function(success,params,responseText,url,xhr){
+		httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr) {
 			if(success) {
 				if(responseText == "saved")
 					confirmMainSaved();
@@ -451,14 +451,14 @@ function setupGranulatedSaving() {
 					displayMessage("Error while saving. Server:\n"+responseText);
 			} else
 				displayMessage("Error while saving, failed to reach the server, status: "+xhr.status);
-		}, null/*params for callback*/,null,urlEncodedRequestBody);
+		}, null/*params for callback*/, null, urlEncodedRequestBody);
 	};
 
 	// when successfully saved, update .storedTiddlers etc
 	TiddlyWiki.prototype.orig_noRefreshingLoaded_setDirty = store.setDirty;
-	TiddlyWiki.prototype.setDirty = function(dirty){
+	TiddlyWiki.prototype.setDirty = function(dirty) {
 		if(!dirty) this.refreshStoredData();
-		return this.orig_noRefreshingLoaded_setDirty.apply(this,arguments);
+		return this.orig_noRefreshingLoaded_setDirty.apply(this, arguments);
 	};
 
 	// since getPageTitle uses wikifyPlainText which requires formatter which is calced
@@ -474,7 +474,7 @@ function setupGranulatedSaving() {
 
 function implementRequestProxying() {
 	window.config.orig_noProxy_httpReq = httpReq; //# or use window.httpReq?
-	httpReq = function(type,url,callback,params,headers,data,contentType,username,password,allowCache)
+	httpReq = function(type, url, callback, params, headers, data, contentType, username, password, allowCache)
 	{
 		// in case of request to current MTS;
 		// we don`t try to guess if urls are the same when the ~index.php bit is omitted/added
@@ -482,7 +482,7 @@ function implementRequestProxying() {
 		// we don`t do this for requests to the same folder/subfolder
 		// (that`s the point of the workingFolder fix)
 		if(url == getOriginalUrl())
-			return window.config.orig_noProxy_httpReq.apply(this,arguments);
+			return window.config.orig_noProxy_httpReq.apply(this, arguments);
 
 		var proxy_url = getOriginalUrl(), // back to MTS
 		    request_url = url,
@@ -497,9 +497,9 @@ function implementRequestProxying() {
 //# what if its type was not application/x-www-form-urlencoded ?
 		url = proxy_url;
 		while(arguments.length < 6) // data is the 6th argument and may have been omitted
-			[].push.call(arguments,undefined);
+			[].push.call(arguments, undefined);
 		arguments[5] = data ? (proxy_content + "&" + data) : proxy_content;
-		return window.config.orig_noProxy_httpReq.apply(this,arguments);
+		return window.config.orig_noProxy_httpReq.apply(this, arguments);
 	};
 }
 
@@ -519,7 +519,7 @@ invokeParamifier = function(params, handler) {
 			setupGranulatedSaving();
 	}
 
-	return noOnlineSaving_invokeParamifier.apply(this,arguments);
+	return noOnlineSaving_invokeParamifier.apply(this, arguments);
 };
 ';
 
@@ -850,13 +850,13 @@ function showWikisList() {
 	document.onkeydown = function(e) {
 		switch(e.which) {
 			case 38: // up
-				select(selected-1); return false;
+				select(selected - 1); return false;
 			case 40: // down
-				select(selected+1); return false;
+				select(selected + 1); return false;
 			case 36: // home
 				select(0); return false;
 			case 35: // end
-				select(items.length-1); return false;
+				select(items.length - 1); return false;
 			case 13: // enter
 				// follow the link
 				window.location = items[selected].children[0].href;
