@@ -470,6 +470,7 @@ function setupGranulatedSaving() {
 	}
 	//  ...and remove it afterwards for backward compability
 //# this probably should be fixed in the core, though (at least we can hijack getPageTitle)
+
 } //setupGranulatedSaving
 
 function implementRequestProxying() {
@@ -945,14 +946,14 @@ function showDocPage() {
 	
 }
 // reads TW, applies changes, saves back; returns 0 on success and error text otherwise (not quite: see //#)
-function updateTW($wikiPath,$changes) { // TW-format-gnostic
+function updateTW($wikiPath, $changes) { // TW-format-gnostic
 
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
 	
 	// a helper
-	function preg_offset($pattern,$text,$skip){
-		preg_match($pattern,$text,$match,PREG_OFFSET_CAPTURE);
+	function preg_offset($pattern, $text, $skip) {
+		preg_match($pattern, $text, $match, PREG_OFFSET_CAPTURE);
 		if(sizeof($match))
 			return $match[0][1] + ($skip ? strlen($match[0][0]) : 0);
 		return -1;
@@ -963,28 +964,28 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	if($debug_mode) {
 		$memoryUsageBeforeUpdate = memory_get_usage();
 		$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
-		file_put_contents('test_incremental_saving__was.txt',$wikiText);
+		file_put_contents('test_incremental_saving__was.txt', $wikiText);
 	}
 	
 	$LINEBREAK = '(?:\r?\n)';
 	// split html into parts before store, store itself and after store (using DOMDocument fails with TWc, see test_dom.php)
 	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>'.$LINEBREAK.'?/'; //<div id="storeArea">\n
-	$posOpeningDiv = preg_offset($re_store_area_div,$wikiText,true); // strpos works faster
+	$posOpeningDiv = preg_offset($re_store_area_div, $wikiText, true); // strpos works faster
 	 // this is seemingly different from posOpeningDiv in TW
 	$re_store_area_end = '/'.$LINEBREAK.'?<\/[dD][iI][vV]>'.$LINEBREAK.'<!--POST-STOREAREA-->/'; // \n</div>\n<!--POST-STOREAREA-->
-	$posClosingDiv = preg_offset($re_store_area_end,$wikiText,false);
+	$posClosingDiv = preg_offset($re_store_area_end, $wikiText, false);
 	 // this may be different from posClosingDiv in TW
-	$storePart       = substr($wikiText,$posOpeningDiv,$posClosingDiv - $posOpeningDiv);
+	$storePart       = substr($wikiText, $posOpeningDiv, $posClosingDiv - $posOpeningDiv);
 	//^ first considerable load and peak rise in memory usage
-	$beforeStorePart = substr($wikiText,0,$posOpeningDiv);
-	$afterStorePart  = substr($wikiText,$posClosingDiv);
+	$beforeStorePart = substr($wikiText, 0, $posOpeningDiv);
+	$afterStorePart  = substr($wikiText, $posClosingDiv);
 	//^ second considerable load and peak rise in memory usage
 	unset($wikiText); // no longer needed, spare memory
 //# return error msg if $beforeStorePart or $afterStorePart is empty (~wrong format/not a TW, .. not found)
 	
 	// extract tiddlers into $tiddlersMap (divs inside #storeArea, see updateOriginal)
 	$re_stored_tiddler = '#<div [^>]+>\s*<pre>[^<]*?</pre>\s*</div>#';
-	preg_match_all($re_stored_tiddler,$storePart,$tiddlersArray); //# can we use explode instead?
+	preg_match_all($re_stored_tiddler, $storePart, $tiddlersArray); //# can we use explode instead?
 	unset($storePart); // no longer needed, spare memory
 	// turn $tiddlersArray[0] into a map by tiddler title (extract title from title attribute)
 	foreach($tiddlersArray[0] as $tiddlerText) {
@@ -1000,12 +1001,12 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	unset($tiddlersArray); // PHP is smart enough not to use additional memory for the new map
 	// but when we unset $tiddlersMap to spare memory that only works if we get rid of $tiddlersArray too
 	if($debug_mode) {
-		file_put_contents('test_store_area_locating.txt','$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap,true));
+		file_put_contents('test_store_area_locating.txt', '$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap, true));
 	}
 	
 	// apply tiddler changes
 	if($debug_mode) {
-		file_put_contents('test_changes_parsing.txt',print_r($changes,true));
+		file_put_contents('test_changes_parsing.txt', print_r($changes, true));
 	}
 	foreach($changes->tiddlers as $tiddlerTitle => $tiddlerChange) {
 		if($tiddlerChange == "deleted") {
@@ -1021,10 +1022,10 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 		}
 	}
 	if($debug_mode) {
-		file_put_contents('test_store_area_locating.txt',print_r($tiddlersMap,true));
+		file_put_contents('test_store_area_locating.txt', print_r($tiddlersMap, true));
 	}
 	// pack updated tiddlers back into DOM + clear memory from the tiddlersMap
-	$updatedStorePart = implode("\n",(array) $tiddlersMap); //works without type change (array)
+	$updatedStorePart = implode("\n", (array)$tiddlersMap); //works without type change (array)
 	unset($tiddlersMap); // no longer needed, spare memory
 
 	// update title if necessary
@@ -1053,7 +1054,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	$wikiText = "{$beforeStorePart}{$updatedStorePart}{$afterStorePart}";
 // actually, we don't even need to concatenate these: we can use fwrite() and save those one-by one
 	if($debug_mode) {
-		file_put_contents('test_incremental_saving__became.txt',$wikiText);
+		file_put_contents('test_incremental_saving__became.txt', $wikiText);
 		
 		$memoryUsageAfterUpdate = memory_get_peak_usage();
 
@@ -1066,7 +1067,7 @@ function updateTW($wikiPath,$changes) { // TW-format-gnostic
 	}
 	
 	// save changed wiki
-	$saved = file_put_contents($wikiPath,$wikiText);
+	$saved = file_put_contents($wikiPath, $wikiText);
 	if(!$saved)
 		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
@@ -1337,7 +1338,7 @@ else if (isset($_REQUEST['proxy_to']))
 	$requestedFolderAndFile = getFolderAndFileNameFromPath($requestedUrlParts['path']);
 	$requestedFolder = $requestedFolderAndFile['folder'];
 	// resolve ./ bits of path (replace /./ with /)
-	$requestedFolder = preg_replace('#/(\./)+#','/',$requestedFolder);
+	$requestedFolder = preg_replace('#/(\./)+#', '/', $requestedFolder);
 	$requestedFolderResolved = resolvePath($requestedFolder); // localhost/../something won't be resolved
 	//# %-decode using rawurldecode (test with myDomain/mtsFolder/relative%20path%20with%20spaces/). Will slashes be preserved at reverse operation?
 	//  why not urldecode: see https://stackoverflow.com/q/996139/
@@ -1357,15 +1358,15 @@ else if (isset($_REQUEST['proxy_to']))
 	$portInRequested = $requestedUrlParts['port'];
 	$isSameDomain = ($requestedUrlParts['host'] == $mtsHost) && (!$portInRequested || ($portInRequested == $mtsPort));
 	$isSameFolder = $isSameDomain && ($requestedFolder == $mtsFolderUrl); //# test (can trailing / be omitted?)
-	$isRelativePath = strpos($requestedFolder,$mtsFolderUrl) === 0;
-	$isSubfolder = strpos($requestedFolderResolved,'..') === false && strpos($requestedFolderResolved,$mtsFolderUrl) === 0;
+	$isRelativePath = strpos($requestedFolder, $mtsFolderUrl) === 0;
+	$isSubfolder = strpos($requestedFolderResolved, '..') === false && strpos($requestedFolderResolved, $mtsFolderUrl) === 0;
 	$isRelativeAddress = $isSameDomain && $isRelativePath;
 	
 	//# extract headers (getallheaders? http_get_request_headers from PECL? see https://stackoverflow.com/a/541463/)
 	//# extract body (http_get_request_body from PECL? see https://stackoverflow.com/q/7187631/)
 	//  try also iterating $_SERVER described in the link
 	$request_body = file_get_contents('php://input'); //# returns empty for application/x-www-form-urlencoded and multipart/form-data
-	$request = print_r($_REQUEST,true);
+	$request = print_r($_REQUEST, true);
 	// doing this is close to rewriting the proxy.. well, this can be done
 	 // we don't have many alternatives since we need to do some ~routing anyway (check working folder)
 	
@@ -1382,7 +1383,7 @@ else if (isset($_REQUEST['proxy_to']))
 	} else if($isSubfolder) {
 		
 		// replace $mtsFolderUrl in $requestedFolderResolved with one slash
-		$requestSubPath = substr_replace($requestedFolderResolved,'/',0,strlen($mtsFolderUrl));
+		$requestSubPath = substr_replace($requestedFolderResolved, '/', 0, strlen($mtsFolderUrl));
 		// realpath doesn't seem to be needed: mixed / and \ don't hurt
 		//# check if the path can contain %20 (the $requestSubPath bit)
 		if(isTwLike($workingFolder . $requestSubPath . $requestedFileDecodedName))
@@ -1392,14 +1393,14 @@ else if (isset($_REQUEST['proxy_to']))
 		//# remove the previous 2 cases which are included in this one?
 	
 		// resolve the path
-		$relativePath = substr_replace($requestedFolder,'/',0,strlen($mtsFolderUrl));
+		$relativePath = substr_replace($requestedFolder, '/', 0, strlen($mtsFolderUrl));
 		$absolutePath = realpath($workingFolder) . $relativePath;
 		$absolutePath = resolvePath($absolutePath); // \ → /, remove /../, /./, multiple / → single /
 
 		// check if it's among dataFolders (consider them as white-list of allowed folders) or their subfolders
 		$allowed = false;
 		foreach($dataFolders as $allowedPath)
-			if(strpos($absolutePath,str_replace('\\','/',$allowedPath)) === 0) // was: $absolutePath == str_replace('\\','/',$allowedPath)
+			if(strpos($absolutePath, str_replace('\\', '/', $allowedPath)) === 0) // was: $absolutePath == str_replace('\\', '/', $allowedPath)
 			//# does this alter $dataFolders[] ?
 				$allowed = true;
 
@@ -1478,7 +1479,7 @@ else if (isset($_REQUEST['proxy_to']))
 		$test_message .= "\n\n" . 'request error: ' . $request_error . "\n";
 		$test_message .= "response:\n\n" . $proxiedRequestResponse . "\n";
 		//$test_message .= '$_SERVER: ' . print_r($_SERVER,true);
-		file_put_contents('test_proxy.txt',$test_message);		
+		file_put_contents('test_proxy.txt', $test_message);
 	}
 }
 else if (isset($_GET['wikis'])) {
