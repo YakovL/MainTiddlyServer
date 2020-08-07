@@ -1,12 +1,13 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
 	--main-gray: #dddddd;
+	--dark-gray: #777777;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
 }
 body {
 	margin: 0;
-	background-color: #777777;
+	background-color: var(--dark-gray);
 }
 @media (min-width: 60em) {
 	body {
@@ -39,6 +40,7 @@ body {
 	padding-top: 1.5em;
 	padding-bottom: 1.5em;
 	margin-bottom: 0.1em;
+	box-shadow: 0 0.1em 0 rgba(0,0,0,0.5);
 }
 .page-header__title {
 	padding: 0.25em 0 0.3em;
@@ -83,7 +85,7 @@ main p, main section>ul, main section>ol {
 	margin-top: 0.2em; margin-bottom: 0.2em;
 }
 main ul, main ol { padding-left: 1.6em; }
-main a { color: #777777; }
+main a { color: var(--dark-gray); }
 
 .donation-form {
 	display: flex;
