@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
-	--main-gray: #dddddd;
-	--dark-gray: #777777;
+	--main-gray: #dddddd; /* #ffffdd */
+	--dark-gray: #777777; /* #4444cc */
 	--meta-background: black;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
@@ -63,7 +63,8 @@ body {
 	text-decoration: none;
 	color: inherit;
 }
-.navigation__link:hover { color: white; }
+.navigation__link:hover  { background-color: #151515; }
+.navigation__link:active { background-color: #202020; }
 .navigation__link_currently-opened {
 	font-weight: bold;
 	pointer-events: none;
