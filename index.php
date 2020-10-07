@@ -82,8 +82,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - remove conflicting dumps to test_store_area_locating.txt
 	 * see https://www.loggly.com/ultimate-guide/php-logging-basics/ and http://www.phptherightway.com/ #errors_and_exceptions and #testing
 	 * add logging of errors for the POST requests (and all requests themselves? use for sync editing?)
-	! add conflict checks to reading/writing TW to prevent data corruption
-	 ? does it take place for big TWs?
 	- implement real-time updating of content (on the front-end) when used by multiple users
 	- test compression by Apache or PHP (see https://stackoverflow.com/q/1862641/) in showTW (online and offline)
 	 ! extracting js and css to separate "files" so that they get cached may be much more effective
@@ -130,6 +128,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ improved paddings in the list of ?wikis for touch devices
 	+ fixed lack of message when non-granulated saving fails to reach server on the stage of loading original
 	+ fixed conflicts of simultaneous proxied requests from different working folders
+	+ added locking options/TW files when reading/writing to avoid conflicts
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -524,24 +523,38 @@ invokeParamifier = function(params, handler) {
 };
 ';
 
+function lock_and_read_file($path) {
+	//if(!file_exists($path)) return null; // or use  throw new Exception('.. file does not exist');  ?
+	$file = fopen($path, "r");
+	if(!$file) return null; // or use  throw new Exception('failed to open .. file');
+	$locked = flock($file, LOCK_SH);
+	 //* if(!$locked) throw new Exception('failed to lock .. file');
+	$content = file_get_contents($path);
+	flock($file, LOCK_UN); // needed in PHP after 5.3.2
+	fclose($file);
+	return $content;
+}
+function lock_and_write_file($path, $content) {
+	return file_put_contents($path, $content, LOCK_EX);
+}
+
 function loadOptions() {
 
 	global $optionsFolder;
 	$oldPath = $optionsFolder . "/" . "options.txt";
 	$newPath = $optionsFolder . "/" . "mts_options.json";
 	if (file_exists($newPath))
-		return json_decode(file_get_contents($newPath), true);
+		return json_decode(lock_and_read_file($newPath), true);
 	if (file_exists($oldPath))
-		return unserialize(file_get_contents($oldPath));
+		return unserialize(lock_and_read_file($oldPath));
 	return null;
 }
 function saveOptions($options) {
 
 	global $optionsFolder;
-	//file_put_contents($optionsFolder . "/" . "options.txt", serialize($options));
 	// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
 	$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
-	file_put_contents($optionsFolder . "/" . "mts_options.json", json_encode($options, $pretty_print));
+	return lock_and_write_file($optionsFolder . "/" . "mts_options.json", json_encode($options, $pretty_print));
 }
 function injectJsToWiki($wikiData) {
 	
@@ -610,7 +623,7 @@ function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 		return false;
 	if(!is_file($file_full_path_and_name))
 		return false;
-	$content = file_get_contents($file_full_path_and_name);
+	$content = lock_and_read_file($file_full_path_and_name);
 	if(!hasSupportedTwVersion($content)) // not TW
 		return false;
 	return true;
@@ -891,7 +904,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 			"<p>Select a wiki file on the <a href='$optionsLink'>options page</a></p>", '', 404);
 		return false;
 	}
-	$wikiData = file_get_contents($wikiPath);
+	$wikiData = lock_and_read_file($wikiPath);
 	
 	// if the version isn't supported, show that
 	$versionParts = getTwVersion($wikiData);
@@ -960,7 +973,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	}
 
 	// get wiki content
-	$wikiText = file_get_contents($wikiPath);
+	$wikiText = lock_and_read_file($wikiPath);
 	if($debug_mode) {
 		$memoryUsageBeforeUpdate = memory_get_usage();
 		$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
@@ -1067,7 +1080,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	}
 	
 	// save changed wiki
-	$saved = file_put_contents($wikiPath, $wikiText);
+	$saved = lock_and_write_file($wikiPath, $wikiText);
 	if(!$saved)
 		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
@@ -1087,7 +1100,7 @@ function getImageFromBase64AndSave($data, $path, $name)
 	
 	$imgBase64String = substr($imgBase64String, $separatorPosition + 1);
 	$imgString = base64_decode($imgBase64String);
-	file_put_contents($path . $name . '.' . $type, $imgString);
+	$saved = file_put_contents($path . $name . '.' . $type, $imgString);
 	// using $type as file extensions is ok for png, jpeg;
 	// for SVGs it will be svg+xml, but will there be SVGs pasted as base64?
 };
@@ -1098,7 +1111,7 @@ function loadImageByUrlAndSave($url, $path, $name)
 	$type = "png";
 	//# check for request errors (see $http_response_header, http://php.net/manual/en/reserved.variables.httpresponseheader.php),
 	//# ensure we got an image, get its type automatically
-	file_put_contents($path . $name . "." . $type, $img);
+	$saved = file_put_contents($path . $name . "." . $type, $img);
 };
 function getImageByUriAndSave($url, $path, $name)
 {
@@ -1193,7 +1206,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 		$content = removeInjectedJsFromWiki($content);
 //# check if putting ↑ into 1 line reduces memory usage
 //# .oO can removeInjectedJsFromWiki fail?
-		$saved = file_put_contents($wikiPath, $content);
+		$saved = lock_and_write_file($wikiPath, $content);
 		echo $saved ? 'saved' :
 			"MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
@@ -1233,7 +1246,7 @@ else if (isset($_POST['options']))
 	if($_POST['memory_limit'] == $system_memory_limit)
 		unset($options['memory_limit']);
 	
-	saveOptions($options);
+	$saved = saveOptions($options);
 	$output = '<p>Active wiki set to ' . $options['wikiname'] . '</p>';
 
 	if (isset($_POST['setpassword']))
