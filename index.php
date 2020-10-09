@@ -118,7 +118,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	  also store links to MTS site and repo in a similar central place
 	- separate "model" and "controller" fully; then separate "controller" and "view"
 	- get rid of ugly ids un and pw (should be different from name s at least)
-	- turn $options into Config singleton (with setters allowing to change only options meant to be changable via UI)
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
@@ -129,6 +128,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ fixed lack of message when non-granulated saving fails to reach server on the stage of loading original
 	+ fixed conflicts of simultaneous proxied requests from different working folders
 	+ added locking options/TW files when reading/writing to avoid conflicts
+	+ refactored options into a singleton class
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -538,24 +538,66 @@ function lock_and_write_file($path, $content) {
 	return file_put_contents($path, $content, LOCK_EX);
 }
 
-function loadOptions() {
+define("DEFAULT_DATAFOLDER_NAME", "main");
+define("DEFAULT_DATAFOLDER_PATH", ".");
+class Options {
+	protected static $optionsFolder;
+	protected static $options;
+	protected static $isChanged;
+	public static function init($optionsFolder) {
+		if(self::$optionsFolder !== null) return;
+		self::$optionsFolder = $optionsFolder;
+		self::$isChanged = false;
+	}
+	public static function load() {
+		// first, read old options as a fallback
+		$oldPath = self::$optionsFolder . "/" . "options.txt";
+		$newPath = self::$optionsFolder . "/" . "mts_options.json";
+		$path = file_exists($newPath) ? $newPath : $oldPath;
 
-	global $optionsFolder;
-	$oldPath = $optionsFolder . "/" . "options.txt";
-	$newPath = $optionsFolder . "/" . "mts_options.json";
-	if (file_exists($newPath))
-		return json_decode(lock_and_read_file($newPath), true);
-	if (file_exists($oldPath))
-		return unserialize(lock_and_read_file($oldPath));
-	return null;
-}
-function saveOptions($options) {
+		$optionsText = lock_and_read_file($path);
+		self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
 
-	global $optionsFolder;
-	// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
-	$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
-	return lock_and_write_file($optionsFolder . "/" . "mts_options.json", json_encode($options, $pretty_print));
+		// normalize
+		if(!self::$options['dataFolders'])
+			self::$options['dataFolders'] = [];
+		if(!self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME])
+			self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH;
+	}
+	public static function get($optionName) {
+		//# if($optionName == 'dataFolders') ... return copy of options['dataFolders'] so that they cannot be changed
+		return self::$options[$optionName];
+	}
+	public static function set($optionName, $value, $unsetEmpty = false) {
+		if($optionName == 'dataFolders') return;
+		if($value != self::$options[$optionName])
+			self::$isChanged = true;
+		if(!$value && $unsetEmpty)
+			unset(self::$options[$optionName]); // https://stackoverflow.com/a/25748033/3995261
+		else
+			self::$options[$optionName] = $value;
+	}
+	public static function chooseWorkingFolder($name) {
+		if(self::$options['dataFolders'][$name]) {
+			self::set('workingFolderName', $name);
+		}
+		$workingFolderName = self::get('workingFolderName');
+		if(!$workingFolderName or !array_key_exists($workingFolderName, self::$options['dataFolders']))
+			self::set('workingFolderName', DEFAULT_DATAFOLDER_NAME);
+		return self::get('workingFolderName');
+	}
+	public static function getWorkingFolder() {
+		return self::$options['dataFolders'][self::get('workingFolderName')];
+	}
+	public static function save() {
+		if(!self::$isChanged) return;
+		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
+		$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
+		$path = self::$optionsFolder . "/" . "mts_options.json";
+		return lock_and_write_file($path, json_encode(self::$options, $pretty_print));
+	}
 }
+
 function injectJsToWiki($wikiData) {
 	
 	global $injectedJsHelpers;
@@ -630,7 +672,7 @@ function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 }
 function isInWokringFolder($file_name_in_current_workingFolder) { // file or folder
 	
-	global $workingFolder;
+	$workingFolder = Options::getWorkingFolder();
 	if(!is_dir($workingFolder)) // workingFolder may be unavailable
 		return false;
 	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
@@ -639,10 +681,9 @@ function isInWokringFolder($file_name_in_current_workingFolder) { // file or fol
 // checks whether it's a tw-like html from the current working folder
 function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 
-	global $workingFolder;
 	if(!isInWokringFolder($file_name_in_current_workingFolder))
 		return false;
-	$fullPath = $workingFolder . "/" . $file_name_in_current_workingFolder;
+	$fullPath = Options::getWorkingFolder() . "/" . $file_name_in_current_workingFolder;
 	if(!isTwLike($fullPath))
 		return false;
 	return true;
@@ -671,7 +712,7 @@ function getListOfTwLikeHtmls($folder) {
 };
 function showMtsPage($html, $title = '', $httpStatus = 200) {
 
-	global $options, $optionsLink, $baselink, $wikisLink, $version;
+	global $optionsLink, $baselink, $wikisLink, $version;
 	
 	http_response_code($httpStatus);
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
@@ -741,8 +782,8 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 	echo '</head><body><div class="wrapper">';
 	//# set navigation__link_currently-opened class to the currently opened page + get rid of "Available TiddlyWikis:" on the wikis page
 	echo '<nav class="navigation">';
-	echo   '<a class="navigation__link" href="'.($options['single_wiki_mode'] ? $baselink : $wikisLink).'">'.
-			($options['single_wiki_mode'] ? 'wiki' : 'wikis').'</a>';
+	echo   '<a class="navigation__link" href="'.(Options::get('single_wiki_mode') ? $baselink : $wikisLink).'">'.
+			(Options::get('single_wiki_mode') ? 'wiki' : 'wikis').'</a>';
 	echo   '<a class="navigation__link" href="'. $optionsLink .'">options</a>';
 	echo '</nav>';
 	echo '<main>'. $html .'</main>';
@@ -751,7 +792,7 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 }
 function showOptionsPage() {
 	
-	global $options, $optionsLink, $workingFolder;
+	global $optionsLink;
 	
 	$output = '<style>
 		.options-form__password-panel { padding: 0 1em; }
@@ -768,9 +809,9 @@ function showOptionsPage() {
 	$output .= '<form class="options-form" name="input" action="' . $optionsLink . '" method="post">' .
 				 '<input type="hidden" name="options">';
 	
-	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
-	/*$folders = $options['dataFolders'];
-	$selected = $options['workingFolderName'];
+	// workingFolder: list Options::get('dataFolders')'s names, send to further save Options 'workingFolderName'
+	/*$folders = Options::get('dataFolders');
+	$selected = Options::get('workingFolderName');
 	$output .= '<p>Use this location: <select name="foldername">';
 	foreach ($folders as $name => $path) {
 		$output .= "<option value=\"$name\"" . ($name == $selected ? " selected" : "") . ">$name</option>\n";
@@ -781,17 +822,17 @@ function showOptionsPage() {
 	//# this should cause updating of the wikis dropdown.. or the latter should be removed from ?options
 	
 	// wiki
-	$files = getListOfTwLikeHtmls($workingFolder);
+	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	$output .= '<p>Use this wiki file: <select name="wikiname">';
 	foreach ($files as $fileName) {
 	
 		// avoid showing backups (legacy of MicroTiddlyServer)
 		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
 			continue;
-		$output .= "<option value=\"$fileName\"" . ($fileName == $options['wikiname'] ? " selected" : "") . ">$fileName</option>\n";
+		$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
 	}
 	$output .= '</select></p>';
-	$output .= '<p><label><input type="checkbox" '.($options['single_wiki_mode'] ? 'checked=checked' : '').
+	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
 				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
@@ -807,7 +848,7 @@ function showOptionsPage() {
 	     '</div>';
 	
 	// memory limit
-	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . $options['memory_limit'] . 
+	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
 		" (increase if your TW is large and saving doesn't work, try values like 6 * size of your TW;" .
 		" leave blank to restore default value)</p>";
@@ -818,8 +859,6 @@ function showOptionsPage() {
 	showMtsPage($output, "Options");
 }
 function showWikisList() {
-
-	global $workingFolder;
 
 	// for screens large enough (in fact, for devices with keyboard),
 	// visualize selection and allow navigation via keyboard
@@ -842,7 +881,7 @@ function showWikisList() {
 	'<div class="wikis-list">'.
 	 "<p>Available TiddlyWikis:</p>" .
 	 '<ul class="wikis-list__list">';
-	 $htmls = getListOfTwLikeHtmls($workingFolder);
+	 $htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	 foreach ($htmls as $name)
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
@@ -885,9 +924,10 @@ function showWikisList() {
 // or TW is served via ?wiki=wikiname.html request
 function showTW($fullPath = '', $pathToShowOnError = '') {
 
-	global $version, $options, $optionsLink, $workingFolder;
+	global $version, $optionsLink;
 	
-	$wikiName = $options['wikiname'];
+	$workingFolder = Options::getWorkingFolder();
+	$wikiName = Options::get('wikiname');
 	$wikiPath = $fullPath ? $fullPath : ($workingFolder . "/" . $wikiName);
 	if(!$pathToShowOnError) $pathToShowOnError = $wikiName;
 //# if ?wiki=.. is not set and it is not single_wiki_mode, change path to ?wiki=.. (http 30_ redirect?)
@@ -949,8 +989,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 }
 function showWikisOrWiki() {
 
-	global $options;
-	if($options['single_wiki_mode'])
+	if(Options::get('single_wiki_mode'))
 		showTW();
 	else
 		showWikisList();
@@ -1134,32 +1173,19 @@ function getImageByUriAndSave($url, $path, $name)
 // set folders used by server and load options:
 $serverFolder  = ".";
 $optionsFolder = $serverFolder;
-$options = loadOptions();
+Options::init($optionsFolder);
+Options::load();
 
-// choose $workingFolder among $dataFolders
-define("DEFAULT_DATAFOLDER_NAME", "main");
-define("DEFAULT_DATAFOLDER_PATH", ".");
-// available folders
-$dataFolders = $options['dataFolders'];
-if(!$dataFolders[DEFAULT_DATAFOLDER_NAME])
-	$dataFolders[DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH; //# disallow overwriting?
-// folder choice (on any request):
-$requestedFolder = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
-if($dataFolders[$requestedFolder])
-	$options['workingFolderName'] = $requestedFolder;
-else
+// choose workingFolder among dataFolders (on any request):
+$requestedFolderName = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
+if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolder)
 	; //# notify user somehow!
-if(!$options['workingFolderName'])
-	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
-if(!array_key_exists($options['workingFolderName'],$dataFolders))
-	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
-$workingFolder = $dataFolders[$options['workingFolderName']];
+$workingFolder = Options::getWorkingFolder();
 
 $system_memory_limit = ini_get('memory_limit');
-if($options['memory_limit'])
-	ini_set('memory_limit',$options['memory_limit']);
-else
-	$options['memory_limit'] = ini_get('memory_limit');
+$memory_limit = Options::get('memory_limit');
+if($memory_limit)
+	ini_set('memory_limit', $memory_limit);
 
 // calc interface links
 $port = $_SERVER['SERVER_PORT'];
@@ -1168,13 +1194,13 @@ $baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCR
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 function getFullWikiLink($nameOrPath) {
-	global $baselink, $options;
+	global $baselink;
 	//# deal with '#' in filename (substitute with %23)
-	if($options['single_wiki_mode'])
+	if(Options::get('single_wiki_mode'))
 		return $baselink;
 	$link = $baselink . '?';
-	if($options['workingFolderName'] && count((array)$options['dataFolders']) > 1)
-		$link .= 'folder=' . $options['workingFolderName'] . '&';
+	if(Options::get('workingFolderName') && count((array)Options::get('dataFolders')) > 1)
+		$link .= 'folder=' . Options::get('workingFolderName') . '&';
 	return $link . 'wiki=' . str_replace('+', '%2B', $nameOrPath);
 }
 
@@ -1184,7 +1210,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 	// decide which wiki should be changed
 	$wikiPath = $workingFolder . "/";
 	if(!$_POST['wiki'])
-		$wikiPath .= $options['wikiname'];
+		$wikiPath .= Options::get('wikiname');
 	// support saving by ?save=yes&wiki=wikiname.html requests – inside current folder
 	else if(isTwInWorkingFolder($_POST['wiki'])) {
 		$wikiPath .= $_POST['wiki'];
@@ -1222,10 +1248,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 else if (isset($_POST['options']))
 {
 	function setOption($name, $unsetEmpty = false) {
-		global $options;
-		$options[$name] = $_POST[$name];
-		if($unsetEmpty && !$options[$name])
-			unset($options[$name]); // https://stackoverflow.com/a/25748033/3995261
+		Options::set($name, $_POST[$name], $unsetEmpty);
 	}
 
 	// $_REQUEST['folder'] is processed "globally" (see above)
@@ -1244,10 +1267,10 @@ else if (isset($_POST['options']))
 	
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
-		unset($options['memory_limit']);
+		Options::set('memory_limit', '', true);
 	
-	$saved = saveOptions($options);
-	$output = '<p>Active wiki set to ' . $options['wikiname'] . '</p>';
+	$saved = Options::save();
+	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
 
 	if (isset($_POST['setpassword']))
 	{
@@ -1283,7 +1306,7 @@ AuthUserFile "' . getcwd() . '/.htpasswd"';
 		}
 	}
 
-	$wikiLink = getFullWikiLink($options['wikiname']);
+	$wikiLink = getFullWikiLink(Options::get('wikiname'));
 	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$wikiLink'>$wikiLink</a></p>";
 	showMtsPage($output);
 }
@@ -1412,9 +1435,8 @@ else if (isset($_REQUEST['proxy_to']))
 
 		// check if it's among dataFolders (consider them as white-list of allowed folders) or their subfolders
 		$allowed = false;
-		foreach($dataFolders as $allowedPath)
+		foreach(Options::get('dataFolders') as $allowedPath)
 			if(strpos($absolutePath, str_replace('\\', '/', $allowedPath)) === 0) // was: $absolutePath == str_replace('\\', '/', $allowedPath)
-			//# does this alter $dataFolders[] ?
 				$allowed = true;
 
 		// if it is a TW(-like) file, serve it
@@ -1509,7 +1531,7 @@ else if (isset($_GET['wiki'])) {
 	}
 	showTW($workingFolder . "/" . $_GET['wiki'], $_GET['wiki']);
 } else {
-	if($options['wikiname'])
+	if(Options::get('wikiname'))
 		showWikisOrWiki();
 	else
 		showOptionsPage();
