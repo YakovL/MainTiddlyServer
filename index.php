@@ -435,8 +435,10 @@ function setupGranulatedSaving() {
 	window.saveOnlineGranulatedChanges = function() {
 	
 		var dataToSend = JSON.stringify(store.getChanges());
-		if(dataToSend == "{}")
+		if(dataToSend == "{}") {
+			store.setDirty(false);
 			return;
+		}
 		var currentPageRequest = getCurrentTwRequestPart();
 		var urlEncodedRequestBody = "saveChanges="+encodeURIComponent(dataToSend)+
 			(currentPageRequest ? "&"+currentPageRequest : "")+
