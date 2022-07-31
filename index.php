@@ -619,7 +619,11 @@ function removeInjectedJsFromWiki($content) {
 	
 	global $injectedJsHelpers;
 
-	$start = strpos($content, $injectedJsHelpers); //# we imply $injectedJsHelpers is in TW ~html (and is not changed)
+	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
+	$start = strpos($content, $injectedJsHelpers);
+	if($start === false) {
+		return $content;
+	}
 	//# can we avoid implying that $injectedJsHelpers is not present inside TW content?
 	$end = $start + strlen($injectedJsHelpers);
 	$content = substr($content, 0, $start) . substr($content, $end); //# try str_replace/str_ireplace instead (compare times)
