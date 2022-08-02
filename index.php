@@ -219,12 +219,18 @@ function saveOnlineChanges() {
 }
 function saveOnlineNonGranulatedChanges() {
 
-	asyncLoadOriginal(function(original){
+	asyncLoadOriginal(function(original) {
 		// on successful original load
 		updateAndSendMain(original, confirmMainSaved);
 	});
 };
 function saveOnlineGranulatedChanges() {}
+function overrideSaving() {
+	window.saveChanges = function(onlyIfDirty, tiddlers) {
+		if(onlyIfDirty && !store.isDirty()) return;
+		return saveOnlineChanges();
+	};
+}
 
 // patch so that FireFox does not corrupt the content
 //# to be tested with IE, Edge
@@ -519,6 +525,8 @@ invokeParamifier = function(params, handler) {
 
 		if(isGranulatedSavingSupported())
 			setupGranulatedSaving();
+
+		overrideSaving();
 	}
 
 	return noOnlineSaving_invokeParamifier.apply(this, arguments);
@@ -608,15 +616,10 @@ function injectJsToWiki($wikiData) {
 	$x = strpos($wikiData, "function saveMain(");
 	$wikiData = substr($wikiData, 0, $x) . $injectedJsHelpers . substr($wikiData, $x);
 
-	// and the call to it inside saveChanges
-	$sc = strpos($wikiData, "function saveChanges(");
-	$sc2 = strpos($wikiData, "clearMessage", $sc);
-	$wikiData = substr($wikiData, 0, $sc2) . "return saveOnlineChanges();" . substr($wikiData, $sc2);
-
 	return $wikiData;
 }
 function removeInjectedJsFromWiki($content) {
-	
+
 	global $injectedJsHelpers;
 
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
@@ -627,8 +630,6 @@ function removeInjectedJsFromWiki($content) {
 	//# can we avoid implying that $injectedJsHelpers is not present inside TW content?
 	$end = $start + strlen($injectedJsHelpers);
 	$content = substr($content, 0, $start) . substr($content, $end); //# try str_replace/str_ireplace instead (compare times)
-	
-	$content = preg_replace('/return saveOnlineChanges\(\);/', '', $content);
 
 	return $content;
 }
