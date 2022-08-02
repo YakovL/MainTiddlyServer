@@ -225,12 +225,6 @@ function saveOnlineNonGranulatedChanges() {
 	});
 };
 function saveOnlineGranulatedChanges() {}
-function overrideSaving() {
-	window.saveChanges = function(onlyIfDirty, tiddlers) {
-		if(onlyIfDirty && !store.isDirty()) return;
-		return saveOnlineChanges();
-	};
-}
 
 // patch so that FireFox does not corrupt the content
 //# to be tested with IE, Edge
@@ -511,13 +505,10 @@ function implementRequestProxying() {
 	};
 }
 
-// we need store and other stuff to be defined when we setupGranulatedSaving;
-// chkHttpReadOnly should be set before calculating readOnly
-var noOnlineSaving_invokeParamifier = invokeParamifier;
-invokeParamifier = function(params, handler) {
-
-	if(handler == "onload" && !window.mtsPatch) {
-		window.mtsPatch = true;
+window.tiddlyBackend = {
+	init() {
+		if(this.isInitialized) return;
+		this.isInitialized = true;
 
 		config.options.chkHttpReadOnly = false;
 
@@ -526,7 +517,21 @@ invokeParamifier = function(params, handler) {
 		if(isGranulatedSavingSupported())
 			setupGranulatedSaving();
 
-		overrideSaving();
+		// override saving
+		window.saveChanges = function(onlyIfDirty, tiddlers) {
+			if(onlyIfDirty && !store.isDirty()) return;
+			return saveOnlineChanges();
+		};
+	}
+}
+
+// we need store and other stuff to be defined when we setupGranulatedSaving;
+// chkHttpReadOnly should be set before calculating readOnly
+var noOnlineSaving_invokeParamifier = invokeParamifier;
+invokeParamifier = function(params, handler) {
+
+	if(handler == "onload") {
+		window.tiddlyBackend.init();
 	}
 
 	return noOnlineSaving_invokeParamifier.apply(this, arguments);
