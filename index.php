@@ -271,10 +271,11 @@ function updateAndSendMain(original, onSuccess) { //rather current HTML than ori
 	var documentStart = original.indexOf("<!DOCTYPE");
 	original = original.substring(documentStart);
 
-	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
+	// url to display in the ~saving failed~ message
+	var localPath = document.location.toString();
+	// alerts on fail, so we don`t notify (again)
 	var newHtml = updateOriginal(original, null, localPath);
-	if(!newHtml)
-		return; // don`t notify: updateOriginal alerts already
+	if(!newHtml) return;
 
 	var currentPageRequest = getCurrentTwRequestPart();
 	var urlEncodedRequestBody = 
