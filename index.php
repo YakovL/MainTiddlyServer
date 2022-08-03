@@ -273,14 +273,14 @@ function updateAndSendMain(original, onSuccess) { //rather current HTML than ori
 
 	var storePosition = locateStoreArea(original);
 	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
-	var newStore = updateOriginal(original, storePosition, localPath); // new html
-	if(!newStore)
+	var newHtml = updateOriginal(original, storePosition, localPath);
+	if(!newHtml)
 		return; // don`t notify: updateOriginal alerts already
 
 	var currentPageRequest = getCurrentTwRequestPart();
 	var urlEncodedRequestBody = 
-		"save=yes&content=" + encodeURIComponent(newStore)+
-		(currentPageRequest ? "&"+currentPageRequest : "")+
+		"save=yes&content=" + encodeURIComponent(newHtml) +
+		(currentPageRequest ? "&" + currentPageRequest : "") +
 		(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
 
 	// And save the new document using a HTML POST request
