@@ -271,9 +271,8 @@ function updateAndSendMain(original, onSuccess) { //rather current HTML than ori
 	var documentStart = original.indexOf("<!DOCTYPE");
 	original = original.substring(documentStart);
 
-	var storePosition = locateStoreArea(original);
 	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
-	var newHtml = updateOriginal(original, storePosition, localPath);
+	var newHtml = updateOriginal(original, null, localPath);
 	if(!newHtml)
 		return; // don`t notify: updateOriginal alerts already
 
