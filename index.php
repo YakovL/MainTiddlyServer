@@ -506,7 +506,7 @@ function implementRequestProxying() {
 }
 
 window.tiddlyBackend = {
-	init() {
+	init: function() {
 		if(this.isInitialized) return;
 		this.isInitialized = true;
 
