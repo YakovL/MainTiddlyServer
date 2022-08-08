@@ -1219,30 +1219,21 @@ function getFullWikiLink($nameOrPath) {
 // If this is an AJAX request to save the file, do so, for incremental changes echo 'saved' on success and error on fail
 if (isset($_POST['save']) || isset($_POST['saveChanges']))
 {
-	// decide which wiki should be changed
-	$wikiPath = $workingFolder . "/";
-	if(!$_POST['wiki'])
-		$wikiPath .= Options::get('wikiname');
-	// support saving by ?save=yes&wiki=wikiname.html requests – inside current folder
-	else if(isTwInWorkingFolder($_POST['wiki'])) {
-		$wikiPath .= $_POST['wiki'];
-	} else { // not sure if this will happen at all
-		echo 'error: "'.$_POST['wiki'].'" is not a valid TiddlyWiki in the working folder';
-		//# send 404?
+	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
+	if(!isTwInWorkingFolder($nameOfTwToUpdate)) {
+		http_response_code(404);
+		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
 		return;
 	}
+	$wikiPath = $workingFolder . $nameOfTwToUpdate;
 
 	// first, backup if required
 	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
-	if($backupId)
-		copy($wikiPath, $wikiPath . ".$backupId.html");
+	if($backupId) copy($wikiPath, $wikiPath . ".$backupId.html");
 
 	// then save
-//# check if wiki exists (it may have been moved or removed)
 	if(isset($_POST['save'])) {
-		$content = $_POST['content'];
-		$content = removeInjectedJsFromWiki($content);
-//# check if putting ↑ into 1 line reduces memory usage
+		$content = removeInjectedJsFromWiki($_POST['content']);
 //# .oO can removeInjectedJsFromWiki fail?
 		$saved = lock_and_write_file($wikiPath, $content);
 		echo $saved ? 'saved' :
