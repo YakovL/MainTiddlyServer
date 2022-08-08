@@ -1286,18 +1286,19 @@ else if (isset($_POST['options']))
 		else {
 			// set .htaccess and .htpasswd (apache 2.2.17 and below)
 			//# use apache_get_version() or $_SERVER['SERVER_SOFTWARE'] to tell that the password won't work when it is so
-			$htaccess = '<Files ~ "^\.(htaccess|htpasswd)$">
-Deny from all
-</Files>
-<FilesMatch "^(options\.txt|mts_options\.json)$">
-Deny from all
-</FilesMatch>
-ErrorDocument 401 "401 - Wrong Password"
-AuthName "Please enter your ID and password"
-AuthType Basic
-Require valid-user
-AuthGroupFile /dev/null
-AuthUserFile "' . getcwd() . '/.htpasswd"';
+			$htaccess = '
+			<Files ~ "^\.(htaccess|htpasswd)$">
+				Deny from all
+			</Files>
+			<FilesMatch "^(options\.txt|mts_options\.json)$">
+				Deny from all
+			</FilesMatch>
+			ErrorDocument 401 "401 - Wrong Password"
+			AuthName "Please enter your ID and password"
+			AuthType Basic
+			Require valid-user
+			AuthGroupFile /dev/null
+			AuthUserFile "' . getcwd() . '/.htpasswd"';
 			$htpasswd = $userName . ':' . crypt($passWord, base64_encode($passWord));
 
 			file_put_contents($serverFolder . "/" . ".htaccess", $htaccess);
