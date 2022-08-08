@@ -1215,7 +1215,7 @@ function getFullWikiLink($nameOrPath) {
 	return $link . 'wiki=' . str_replace('+', '%2B', $nameOrPath);
 }
 
-// If this is an AJAX request to save the file, do so, for incremental changes echo 'saved' on success and error on fail
+// If this is an AJAX request to save the file, do so, for incremental changes respond 'saved' on success and error on fail
 if (isset($_POST['save']) || isset($_POST['saveChanges']))
 {
 	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
@@ -1242,7 +1242,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 	} else { // incremental saving from the saveChanges request
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
-		$errors = updateTW($wikiPath,$changes);
+		$errors = updateTW($wikiPath, $changes);
 		$successStatus = $errors ? $errors : 'saved';
 		echo $successStatus;
 	}
