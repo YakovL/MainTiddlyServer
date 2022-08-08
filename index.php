@@ -628,15 +628,14 @@ function removeInjectedJsFromWiki($content) {
 	global $injectedJsHelpers;
 
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
+	// we also imply that they are only present in the code (and not inside TW content) == there's just 1 occurrence
+	//# try  return str_replace($injectedJsHelpers, '', $content);  instead (compare times, memory usage)
 	$start = strpos($content, $injectedJsHelpers);
 	if($start === false) {
 		return $content;
 	}
-	//# can we avoid implying that $injectedJsHelpers is not present inside TW content?
 	$end = $start + strlen($injectedJsHelpers);
-	$content = substr($content, 0, $start) . substr($content, $end); //# try str_replace/str_ireplace instead (compare times)
-
-	return $content;
+	return substr($content, 0, $start) . substr($content, $end);
 }
 function getTwVersion($wikiFileText) {
 
