@@ -1224,7 +1224,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
 		return;
 	}
-	$wikiPath = $workingFolder . $nameOfTwToUpdate;
+	$wikiPath = $workingFolder . "/" . $nameOfTwToUpdate;
 
 	// first, backup if required
 	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
