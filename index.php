@@ -411,26 +411,27 @@ function setupGranulatedSaving() {
 	}
 
 	window.saveOnlineGranulatedChanges = function() {
-	
+
 		var dataToSend = JSON.stringify(store.getChanges());
 		if(dataToSend == "{}") {
 			store.setDirty(false);
 			return;
 		}
-		var currentPageRequest = getCurrentTwRequestPart();
-		var urlEncodedRequestBody = "saveChanges="+encodeURIComponent(dataToSend)+
-			(currentPageRequest ? "&"+currentPageRequest : "")+
-			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
-	
-		httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr) {
-			if(success) {
+
+		tiddlyBackend.call({
+			method: "POST",
+			onSuccess: function(responseText) {
 				if(responseText == "saved")
 					confirmMainSaved();
 				else
-					displayMessage("Error while saving. Server:\n"+responseText);
-			} else
-				displayMessage("Error while saving, failed to reach the server, status: "+xhr.status);
-		}, null/*params for callback*/, null, urlEncodedRequestBody);
+					displayMessage("Error while saving. Server:\n" + responseText);
+			},
+			onProblem: function(status) {
+				displayMessage("Error while saving, failed to reach the server, status: "+ status);
+			},
+			body: "saveChanges="+encodeURIComponent(dataToSend) +
+				(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
+		});
 	};
 
 	// when successfully saved, update .storedTiddlers etc
