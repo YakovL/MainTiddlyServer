@@ -485,6 +485,10 @@ function implementRequestProxying() {
 }
 
 window.tiddlyBackend = {
+	version: {
+		title: "MainTiddlyServer",
+		asString: "' . $version . '"
+	},
 	// auxiliary ("private") method
 	// params: { method?: "GET" | "POST" | ..., headers: { [name:string]: string }, body?: string (data form),
 	// onSuccess?: (responseText ??) => void, onProblem?: (status ??)=>void, isSync?: boolean }
