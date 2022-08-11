@@ -1237,7 +1237,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 
 	// first, backup if required
 	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
-	if($backupId) copy($wikiPath, $wikiPath . ".$backupId.html");
+	if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
 
 	// then save
 	if(isset($_POST['save'])) {
