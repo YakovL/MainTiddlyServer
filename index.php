@@ -1043,7 +1043,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
-	
+
 	// a helper
 	function preg_offset($pattern, $text, $skip) {
 		preg_match($pattern, $text, $match, PREG_OFFSET_CAPTURE);
@@ -1059,7 +1059,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 		$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
 		file_put_contents('test_incremental_saving__was.txt', $wikiText);
 	}
-	
+
 	$LINEBREAK = '(?:\r?\n)';
 	// split html into parts before store, store itself and after store (using DOMDocument fails with TWc, see test_dom.php)
 	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>'.$LINEBREAK.'?/'; //<div id="storeArea">\n
@@ -1075,7 +1075,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	//^ second considerable load and peak rise in memory usage
 	unset($wikiText); // no longer needed, spare memory
 //# return error msg if $beforeStorePart or $afterStorePart is empty (~wrong format/not a TW, .. not found)
-	
+
 	// extract tiddlers into $tiddlersMap (divs inside #storeArea, see updateOriginal)
 	$re_stored_tiddler = '#<div [^>]+>\s*<pre>[^<]*?</pre>\s*</div>#';
 	preg_match_all($re_stored_tiddler, $storePart, $tiddlersArray); //# can we use explode instead?
@@ -1096,7 +1096,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	if($debug_mode) {
 		file_put_contents('test_store_area_locating.txt', '$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap, true));
 	}
-	
+
 	// apply tiddler changes
 	if($debug_mode) {
 		file_put_contents('test_changes_parsing.txt', print_r($changes, true));
@@ -1148,7 +1148,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 // actually, we don't even need to concatenate these: we can use fwrite() and save those one-by one
 	if($debug_mode) {
 		file_put_contents('test_incremental_saving__became.txt', $wikiText);
-		
+
 		$memoryUsageAfterUpdate = memory_get_peak_usage();
 
 		file_put_contents('test_memory_usage.txt',
@@ -1158,7 +1158,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 			"\npeak in process: ".$memoryPeakUsageMiddleOfUpdate.
 			"\nafter: ".$memoryUsageAfterUpdate);
 	}
-	
+
 	// save changed wiki
 	$saved = lock_and_write_file($wikiPath, $wikiText);
 	if(!$saved)
