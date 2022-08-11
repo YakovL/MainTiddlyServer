@@ -232,18 +232,13 @@ convertUnicodeToFileFormat = function(s) { return config.browser.isIE ? convertU
 
 function asyncLoadOriginal(onSuccess) {
 
-	// Load the original and proceed on success
-	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.onreadystatechange = function() {
-		if (this.readyState == 4) {
-			if(this.status == 200)
-				onSuccess(this.responseText);
-			else
-				displayMessage("Error while saving, failed to reach the server and load original, status: "+ this.status);
+	// GET call with no params loads the original
+	tiddlyBackend.call({
+		onSuccess: onSuccess,
+		onProblem: function(status) {
+			displayMessage("Error while saving, failed to reach the server and load original, status: "+ status);
 		}
-	}
-	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
-	xmlhttp.send();
+	});
 };
 function getQueryParts() {
 
