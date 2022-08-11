@@ -260,51 +260,34 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function updateAndSendMain(original, onSuccess) { //rather current HTML than original
+function updateAndSendMain(original, onSuccess) { // original = HTML currently stored on backend
 
-	// Skip any comment at the start of the file
+	// Skip any comment at the start of the file..
 	var documentStart = original.indexOf("<!DOCTYPE");
 	original = original.substring(documentStart);
 
+	// ..get updated html..
 	// url to display in the ~saving failed~ message
 	var localPath = document.location.toString();
 	// alerts on fail, so we don`t notify (again)
 	var newHtml = updateOriginal(original, null, localPath);
 	if(!newHtml) return;
 
-	var currentPageRequest = getCurrentTwRequestPart();
-	var urlEncodedRequestBody = 
-		"save=yes&content=" + encodeURIComponent(newHtml) +
-		(currentPageRequest ? "&" + currentPageRequest : "") +
-		(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
-
-	// And save the new document using a HTML POST request
-	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.onreadystatechange = function()
-	{
-		if (this.readyState == 4) {
-			if(this.status == 200) {
-				if(this.responseText == "saved")
-					onSuccess();
-				else
-					displayMessage("Error while saving. Server:\n"+this.responseText);
-			}
-			else
-				displayMessage("Error while saving, failed to reach the server, status: "+ this.status);
-		}
-	}
-	xmlhttp.open("POST", getOriginalUrl(), true);
-	xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-	xmlhttp.send(urlEncodedRequestBody);
-	/*httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr){
-		if(success) {
-			if(responseText == "saved")
-				onSuccess();
-			else
-				displayMessage("Error while saving. Server:\n"+responseText);
-		} else
-			displayMessage("Error while saving, failed to reach the server, status: "+ xhr.status);
-	}, null, null, urlEncodedRequestBody);*/
+	// ..and pass the new document to MTS for saving
+	tiddlyBackend.call({
+		method: "POST",
+		onSuccess: function(responseText) {
+			if(responseText == "saved") onSuccess();
+			else displayMessage("Error while saving. Server:\n" + responseText);
+		},
+		onProblem: function(status, responseText) {
+			displayMessage("Error while saving, failed to reach the server, status: "+ status +"; responseText:");
+			// the only way to show it multiline, as for 2.9.3
+			displayMessage(responseText);
+		},
+		body: "save=yes&content=" + encodeURIComponent(newHtml) +
+			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
+	});
 };
 function confirmMainSaved() {
 	// like in saveMain
