@@ -506,6 +506,36 @@ function implementRequestProxying() {
 }
 
 window.tiddlyBackend = {
+	// auxiliary ("private") method
+	// params: { method?: "GET" | "POST" | ..., headers: { [name:string]: string }, body?: string (data form),
+	// onSuccess?: (responseText ??) => void, onProblem?: (status ??)=>void, isSync?: boolean }
+	call: function(params) {
+		var method = (params.method || "GET").toUpperCase();
+		var url = getOriginalUrl();
+		var body = params.body || null;
+		var headers = params.headers || {};
+		var currentPageRequest = getCurrentTwRequestPart();
+		if(method === "GET") {
+			if(currentPageRequest) url += (url.indexOf("?") == -1 ? "?" : "&") + currentPageRequest;
+		} else {
+			body = !body ? currentPageRequest :
+				body + (currentPageRequest ? "&" + currentPageRequest : "");
+			headers["Content-Type"] = "application/x-www-form-urlencoded";
+		}
+
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function() {
+			if(this.readyState != 4) return;
+			if(this.status == 200) {
+				if(params.onSuccess) params.onSuccess(this.responseText);
+			} else {
+				if(params.onProblem) params.onProblem(this.status, this.responseText);
+			}
+		}
+		xhr.open(method, url, !params.isSync);
+		for(var name in headers) xhr.setRequestHeader(name, headers[name]);
+		xhr.send(body);
+	},
 	init: function() {
 		if(this.isInitialized) return;
 		this.isInitialized = true;
