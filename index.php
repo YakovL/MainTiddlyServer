@@ -215,31 +215,14 @@ function saveOnlineChanges() {
 	if(shouldGranulatedSavingBeUsed())
 		saveOnlineGranulatedChanges();
 	else
-		saveOnlineNonGranulatedChanges();
+		tiddlyBackend.saveTwSnapshot();
 }
-function saveOnlineNonGranulatedChanges() {
-
-	asyncLoadOriginal(function(original) {
-		// on successful original load
-		updateAndSendMain(original, confirmMainSaved);
-	});
-};
 function saveOnlineGranulatedChanges() {}
 
 // patch so that FireFox does not corrupt the content
 //# to be tested with IE, Edge
 convertUnicodeToFileFormat = function(s) { return config.browser.isIE ? convertUnicodeToHtmlEntities(s) : s; };
 
-function asyncLoadOriginal(onSuccess) {
-
-	// GET call with no params loads the original
-	tiddlyBackend.call({
-		onSuccess: onSuccess,
-		onProblem: function(status) {
-			displayMessage("Error while saving, failed to reach the server and load original, status: "+ status);
-		}
-	});
-};
 function getQueryParts() {
 
 	var queryArray = window.location.search.substr(1).split("&"), queryMap = {};
@@ -260,35 +243,6 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function updateAndSendMain(original, onSuccess) { // original = HTML currently stored on backend
-
-	// Skip any comment at the start of the file..
-	var documentStart = original.indexOf("<!DOCTYPE");
-	original = original.substring(documentStart);
-
-	// ..get updated html..
-	// url to display in the ~saving failed~ message
-	var localPath = document.location.toString();
-	// alerts on fail, so we don`t notify (again)
-	var newHtml = updateOriginal(original, null, localPath);
-	if(!newHtml) return;
-
-	// ..and pass the new document to MTS for saving
-	tiddlyBackend.call({
-		method: "POST",
-		onSuccess: function(responseText) {
-			if(responseText == "saved") onSuccess();
-			else displayMessage("Error while saving. Server:\n" + responseText);
-		},
-		onProblem: function(status, responseText) {
-			displayMessage("Error while saving, failed to reach the server, status: "+ status +"; responseText:");
-			// the only way to show it multiline, as for 2.9.3
-			displayMessage(responseText);
-		},
-		body: "save=yes&content=" + encodeURIComponent(newHtml) +
-			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
-	});
-};
 function confirmMainSaved() {
 	// like in saveMain
 	displayMessage(config.messages.mainSaved);
@@ -506,7 +460,8 @@ window.tiddlyBackend = {
 			return saveOnlineChanges();
 		};
 	},
-	// auxiliary ("private") method
+
+	// auxiliary ("private") methods
 	// params: { method?: "GET" | "POST" | ..., headers: { [name:string]: string }, body?: string (data form),
 	// onSuccess?: (responseText ??) => void, onProblem?: (status ??)=>void, isSync?: boolean }
 	call: function(params) {
@@ -535,6 +490,49 @@ window.tiddlyBackend = {
 		xhr.open(method, url, !params.isSync);
 		for(var name in headers) xhr.setRequestHeader(name, headers[name]);
 		xhr.send(body);
+	},
+	loadOriginal: function(onSuccess) {
+		// GET call with default params loads the TW itself
+		this.call({
+			onSuccess: onSuccess,
+			onProblem: function(status) {
+				displayMessage("Error while saving, failed to reach the server and load original, status: "+ status);
+			}
+		});
+	},
+	// original = HTML currently stored on backend
+	updateAndSendMain: function (original, onSuccess) {
+		// Skip any comment at the start of the file..
+		const documentStart = original.indexOf("<!DOCTYPE");
+		original = original.substring(documentStart);
+
+		// ..get updated html..
+		// url to display in the ~saving failed~ message
+		const localPath = document.location.toString();
+		// alerts on fail, so we don`t notify (again)
+		const newHtml = updateOriginal(original, null, localPath);
+		if(!newHtml) return;
+
+		// ..and pass the new document to MTS for saving
+		tiddlyBackend.call({
+			method: "POST",
+			onSuccess: function(responseText) {
+				if(responseText == "saved") onSuccess();
+				else displayMessage("Error while saving. Server:\n" + responseText);
+			},
+			onProblem: function(status, responseText) {
+				displayMessage("Error while saving, failed to reach the server, status: "+ status +"; responseText:");
+				// the only way to show it multiline, as for TW 2.9.3
+				displayMessage(responseText);
+			},
+			body: "save=yes&content=" + encodeURIComponent(newHtml) +
+				(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
+		});
+	},
+
+	// "public" methods
+	saveTwSnapshot: function() {
+		this.loadOriginal(original => this.updateAndSendMain(original, confirmMainSaved));
 	}
 }
 
