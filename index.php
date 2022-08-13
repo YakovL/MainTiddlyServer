@@ -489,6 +489,23 @@ window.tiddlyBackend = {
 		title: "MainTiddlyServer",
 		asString: "' . $version . '"
 	},
+	init: function() {
+		if(this.isInitialized) return;
+		this.isInitialized = true;
+
+		config.options.chkHttpReadOnly = false;
+
+		implementRequestProxying();
+
+		if(isGranulatedSavingSupported())
+			setupGranulatedSaving();
+
+		// override saving
+		window.saveChanges = function(onlyIfDirty, tiddlers) {
+			if(onlyIfDirty && !store.isDirty()) return;
+			return saveOnlineChanges();
+		};
+	},
 	// auxiliary ("private") method
 	// params: { method?: "GET" | "POST" | ..., headers: { [name:string]: string }, body?: string (data form),
 	// onSuccess?: (responseText ??) => void, onProblem?: (status ??)=>void, isSync?: boolean }
@@ -518,23 +535,6 @@ window.tiddlyBackend = {
 		xhr.open(method, url, !params.isSync);
 		for(var name in headers) xhr.setRequestHeader(name, headers[name]);
 		xhr.send(body);
-	},
-	init: function() {
-		if(this.isInitialized) return;
-		this.isInitialized = true;
-
-		config.options.chkHttpReadOnly = false;
-
-		implementRequestProxying();
-
-		if(isGranulatedSavingSupported())
-			setupGranulatedSaving();
-
-		// override saving
-		window.saveChanges = function(onlyIfDirty, tiddlers) {
-			if(onlyIfDirty && !store.isDirty()) return;
-			return saveOnlineChanges();
-		};
 	}
 }
 
