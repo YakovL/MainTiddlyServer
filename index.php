@@ -92,11 +92,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	* test and add support of TW below 2.6.5 (build autotests)
 	* extend isTwLike to recognize PureStore
 	* test with IE: is encoding of non-latin letters broken? (change the convertUnicodeToFileFormat patch accordingly)
-	* reduce async implementation of asyncLoadOriginal, updateAndSendMain via httpReq
-	 . use httpReq("GET",url,callback,paramsToPassToCallback,null,data,contentType) (already written in comment)
-	  . set contentType to "application/x-www-form-urlencoded" or omit (this is the default value)
-	  ? when httpReq was introduced? (what TW versions we support?)
-	 . much code is shared with the new ~saving by patching~ – make it more DRY
 	password-protection to-dos:
 	- make password field type="password" and add a duplicate field to check if those values coincide
 	. until we stop relying on Apache:
