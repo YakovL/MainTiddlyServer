@@ -404,8 +404,8 @@ function setupGranulatedSaving() {
 
 function implementRequestProxying() {
 	window.config.orig_noProxy_httpReq = httpReq; //# or use window.httpReq?
-	httpReq = function(type, url, callback, params, headers, data, contentType, username, password, allowCache)
-	{
+	httpReq = function(type, url, callback, params, headers, data, contentType, username, password, allowCache) {
+
 		// in case of request to current MTS;
 		// we don`t try to guess if urls are the same when the ~index.php bit is omitted/added
 		// since we don`t know settings of the index file in the folder;
