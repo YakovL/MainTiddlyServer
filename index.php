@@ -459,6 +459,33 @@ window.tiddlyBackend = {
 			if(onlyIfDirty && !store.isDirty()) return;
 			return saveOnlineChanges();
 		};
+
+		// decorate copyFile to make it work for backuping on upgrading (sync, returns boolean indicating whether succeeded)
+		var nonBackuping_copyFile = window.copyFile;
+		window.copyFile = function(destinationPath, sourcePath) {
+			// check if was used for creating a backup (see config.macros.upgrade.onClickUpgrade)
+			const backupPathReconstructed = getBackupPath(sourcePath, config.macros.upgrade.backupExtension)
+			const maskTimestamp = (path) => path.replace(/\d/g, "*")
+			if(sourcePath != getLocalPath(document.location.toString())
+			   || maskTimestamp(destinationPath) != maskTimestamp(backupPathReconstructed))
+				return nonBackuping_copyFile.apply(this, arguments);
+
+			const backslash = "\\\\";
+			const slashUsed = destinationPath.indexOf("/") == -1 ? backslash : "/";
+			const pathParts = destinationPath.split(slashUsed);
+			const fileName = pathParts[pathParts.length - 1];
+
+			let success = false;
+			tiddlyBackend.call({
+				method: "POST",
+				onSuccess: function(responseText) { success = responseText === "success" },
+				body: "backupByName=" + encodeURIComponent(fileName) +
+					"&backupFolder=" + encodeURIComponent(config.options.txtBackupFolder),
+				isSync: true
+			})
+
+			return success;
+		};
 	},
 
 	// auxiliary ("private") methods
@@ -1257,6 +1284,46 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 		$successStatus = $errors ? $errors : 'saved';
 		echo $successStatus;
 	}
+}
+// For a backup request, respond with 'success' or a string explaining the problem
+else if (isset($_POST['backupByName']))
+{
+	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
+	if(!isTwInWorkingFolder($twToBackupFileName)) {
+		http_response_code(404);
+		exit("error: \"$twToBackupFileName\" is not a valid TiddlyWiki in the working folder");
+	}
+	$twToBackup = $workingFolder . "/" . $twToBackupFileName;
+
+	// remove chars other than -_.a-zA-Z0-9 from file name
+	$backupFileName = preg_replace("/[^\w-_\.]/", '', $_POST['backupByName']);
+	$requestedBackupSubfolder = $_POST['backupFolder'];
+	$defaultTwBackupFolder = "backups";
+	// only allow current folder and direct subfolders
+	if(!$requestedBackupSubfolder) {
+		$backupSubfolder = $defaultTwBackupFolder;
+	} else {
+		if(preg_match("/^[\w\.]+$/", $requestedBackupSubfolder) && $requestedBackupSubfolder != '..') {
+			$backupSubfolder = $requestedBackupSubfolder;
+		} else {
+			http_response_code(403);
+			exit("error: $requestedBackupSubfolder is not allowed as a backup subfolder");
+		}
+	}
+	$backupFolder = $workingFolder . "/" . $backupSubfolder;
+	if(!file_exists($backupFolder)) mkdir($backupFolder, 0777, true);
+	$backupPath = $backupFolder . "/" . $backupFileName;
+	// $backupPath file exists, will overwrite
+
+	set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+		http_response_code(500);
+		exit("error when trying to make a backup copy: $errstr (errno $errno)");
+	});
+	$success = copy($twToBackup, $backupPath);
+	restore_error_handler();
+
+	// unsure if we can in fact end up here with falsy $success
+	echo $success ? 'success' : 'creating backup failed';
 }
 else if (isset($_POST['options']))
 {
