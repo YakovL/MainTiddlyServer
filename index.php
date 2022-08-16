@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.6.3';
+$version = '1.7.0';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,7 +116,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
-	+ reduced the number of injected JS parts
+	1.7.0
+	+ reduced injected JS to just one chunk, simplified injecting/removing on backend,
+	  fixed removeInjectedJsFromWiki for upgrading TW: don't modify the file if injected bits are not found
 	+ added support of TWs with CRLF linebreaks (for instance, git changes them so)
 	+ made messages about unsupported TW versions more specific and helpful
 	+ improved paddings in the list of ?wikis for touch devices
@@ -124,6 +126,12 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ fixed conflicts of simultaneous proxied requests from different working folders
 	+ added locking options/TW files when reading/writing to avoid conflicts
 	+ refactored options into a singleton class
+	+ update latest tested TW version to 2.9.3
+	+ fixed store dirtiness when changes to save are empty
+	+ introduced tiddlyBackend on front-end, encapsulated several methods into it from global scope,
+	  exposed MTS version in it for feature detection
+	+ implemented ?backupByName endpoint and decorated copyFile so that during TW upgrading the backup is really saved
+	. started using contemporary JS bits (arrow functions, const/let)
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
