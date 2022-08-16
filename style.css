@@ -1,7 +1,11 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
-	--primary-rgb: 221, 221, 221; /* todo: colorize */
-	--darkish: #777777; /* todo: colorize */
+	/* todo: try this approach instead for primary/opacity: https://stackoverflow.com/a/47831336/3995261 */
+	--primary-rgb: 246, 234, 196;
+	--darkish: #888577;
+	/* todo: try more colorizing, like:
+	   #8bd9f5 outside, #014353 for meta and main font color, #048cbd for links;
+	   check also TWC colors */
 	--meta-background: black;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
