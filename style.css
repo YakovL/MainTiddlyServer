@@ -1,14 +1,18 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,700');
 :root {
-	--main-gray: #dddddd; /* #ffffdd */
-	--dark-gray: #777777; /* #4444cc */
+	/* todo: try this approach instead for primary/opacity: https://stackoverflow.com/a/47831336/3995261 */
+	--primary-rgb: 246, 234, 196;
+	--darkish: #888577;
+	/* todo: try more colorizing, like:
+	   #8bd9f5 outside, #014353 for meta and main font color, #048cbd for links;
+	   check also TWC colors */
 	--meta-background: black;
 	font-family: 'Roboto Slab', sans-serif;
 	font-size: 16px; /* let's set explicitly */
 }
 body {
 	margin: 0;
-	background-color: var(--dark-gray);
+	background-color: var(--darkish);
 }
 @media (min-width: 60em) {
 	body {
@@ -16,7 +20,7 @@ body {
 	}
 }
 .wrapper {
-	background-color: var(--main-gray);
+	background-color: rgb(var(--primary-rgb));
 
 	width: 40em;
 	max-width: 100%;
@@ -33,11 +37,13 @@ body {
 	padding-right: 1rem;
 	/* add some padding left and right, should be used on mobile */
 }
+.page-header, .navigation, .wrapper__footer {
+	background-color: var(--meta-background);
+	color: rgb(var(--primary-rgb));
+	text-align: center;
+}
 
 .page-header {
-	text-align: center;
-	background-color: var(--meta-background);
-	color: var(--main-gray);
 	padding-top: 1.5em;
 	padding-bottom: 1.5em;
 	margin-bottom: 0.1em;
@@ -54,22 +60,19 @@ body {
 
 .navigation {
 	padding: 0; margin: 0;
-	text-align: center;
-	background-color: var(--meta-background);
-	color: var(--main-gray);
 }
 .navigation__link {
 	display: inline-block; padding: 1em 2em;
 	text-decoration: none;
 	color: inherit;
 }
-.navigation__link:hover  { background-color: #151515; }
-.navigation__link:active { background-color: #202020; }
+.navigation__link:hover  { background-color: rgba(var(--primary-rgb), 0.3); }
+.navigation__link:active { background-color: rgba(var(--primary-rgb), 0.2); }
 .navigation__link_currently-opened {
 	font-weight: bold;
 	pointer-events: none;
 	cursor: default;
-	background-color: #202020;
+	background-color: rgba(var(--primary-rgb), 0.2);
 }
 
 main {
@@ -86,7 +89,7 @@ main p, main section>ul, main section>ol {
 	margin-top: 0.2em; margin-bottom: 0.2em;
 }
 main ul, main ol { padding-left: 1.6em; }
-main a { color: var(--dark-gray); }
+main a { color: var(--darkish); }
 
 .donation-form {
 	display: flex;
@@ -97,10 +100,6 @@ main a { color: var(--dark-gray); }
 }
 
 .wrapper__footer {
-	background-color: var(--meta-background);
-	color: var(--main-gray);
-	
-	text-align: center;
 	font-size: 0.8rem;
 	
 	margin-top: auto; /* https://stackoverflow.com/a/47640893/3995261 */

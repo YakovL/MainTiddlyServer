@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.6.3';
+$version = '1.7.0';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -82,8 +82,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	 - remove conflicting dumps to test_store_area_locating.txt
 	 * see https://www.loggly.com/ultimate-guide/php-logging-basics/ and http://www.phptherightway.com/ #errors_and_exceptions and #testing
 	 * add logging of errors for the POST requests (and all requests themselves? use for sync editing?)
-	! add conflict checks to reading/writing TW to prevent data corruption
-	 ? does it take place for big TWs?
 	- implement real-time updating of content (on the front-end) when used by multiple users
 	- test compression by Apache or PHP (see https://stackoverflow.com/q/1862641/) in showTW (online and offline)
 	 ! extracting js and css to separate "files" so that they get cached may be much more effective
@@ -94,11 +92,6 @@ You will then be asked to perform some initial configuration, after which you ca
 	* test and add support of TW below 2.6.5 (build autotests)
 	* extend isTwLike to recognize PureStore
 	* test with IE: is encoding of non-latin letters broken? (change the convertUnicodeToFileFormat patch accordingly)
-	* reduce async implementation of asyncLoadOriginal, updateAndSendMain via httpReq
-	 . use httpReq("GET",url,callback,paramsToPassToCallback,null,data,contentType) (already written in comment)
-	  . set contentType to "application/x-www-form-urlencoded" or omit (this is the default value)
-	  ? when httpReq was introduced? (what TW versions we support?)
-	 . much code is shared with the new ~saving by patching~ – make it more DRY
 	password-protection to-dos:
 	- make password field type="password" and add a duplicate field to check if those values coincide
 	. until we stop relying on Apache:
@@ -120,16 +113,25 @@ You will then be asked to perform some initial configuration, after which you ca
 	  also store links to MTS site and repo in a similar central place
 	- separate "model" and "controller" fully; then separate "controller" and "view"
 	- get rid of ugly ids un and pw (should be different from name s at least)
-	- turn $options into Config singleton (with setters allowing to change only options meant to be changable via UI)
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
-	+ reduced the number of injected JS parts
+	1.7.0
+	+ reduced injected JS to just one chunk, simplified injecting/removing on backend,
+	  fixed removeInjectedJsFromWiki for upgrading TW: don't modify the file if injected bits are not found
 	+ added support of TWs with CRLF linebreaks (for instance, git changes them so)
 	+ made messages about unsupported TW versions more specific and helpful
 	+ improved paddings in the list of ?wikis for touch devices
 	+ fixed lack of message when non-granulated saving fails to reach server on the stage of loading original
 	+ fixed conflicts of simultaneous proxied requests from different working folders
+	+ added locking options/TW files when reading/writing to avoid conflicts
+	+ refactored options into a singleton class
+	+ update latest tested TW version to 2.9.3
+	+ fixed store dirtiness when changes to save are empty
+	+ introduced tiddlyBackend on front-end, encapsulated several methods into it from global scope,
+	  exposed MTS version in it for feature detection
+	+ implemented ?backupByName endpoint and decorated copyFile so that during TW upgrading the backup is really saved
+	. started using contemporary JS bits (arrow functions, const/let)
 	1.6.3
 	+ introduce single wiki mode
 	+ refactored various bits of code, setting memory_limit should now work consistently
@@ -216,36 +218,14 @@ function saveOnlineChanges() {
 	if(shouldGranulatedSavingBeUsed())
 		saveOnlineGranulatedChanges();
 	else
-		saveOnlineNonGranulatedChanges();
+		tiddlyBackend.saveTwSnapshot();
 }
-function saveOnlineNonGranulatedChanges() {
-
-	asyncLoadOriginal(function(original){
-		// on successful original load
-		updateAndSendMain(original, confirmMainSaved);
-	});
-};
 function saveOnlineGranulatedChanges() {}
 
 // patch so that FireFox does not corrupt the content
 //# to be tested with IE, Edge
 convertUnicodeToFileFormat = function(s) { return config.browser.isIE ? convertUnicodeToHtmlEntities(s) : s; };
 
-function asyncLoadOriginal(onSuccess) {
-
-	// Load the original and proceed on success
-	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.onreadystatechange = function() {
-		if (this.readyState == 4) {
-			if(this.status == 200)
-				onSuccess(this.responseText);
-			else
-				displayMessage("Error while saving, failed to reach the server and load original, status: "+ this.status);
-		}
-	}
-	xmlhttp.open("GET", getOriginalUrl() + document.location.search, true);
-	xmlhttp.send();
-};
 function getQueryParts() {
 
 	var queryArray = window.location.search.substr(1).split("&"), queryMap = {};
@@ -266,52 +246,6 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function updateAndSendMain(original, onSuccess) { //rather current HTML than original
-
-	// Skip any comment at the start of the file
-	var documentStart = original.indexOf("<!DOCTYPE");
-	original = original.substring(documentStart);
-
-	var storePosition = locateStoreArea(original);
-	var localPath = document.location.toString(); // url to display in the ~saving failed~ message
-	var newStore = updateOriginal(original, storePosition, localPath); // new html
-	if(!newStore)
-		return; // don`t notify: updateOriginal alerts already
-
-	var currentPageRequest = getCurrentTwRequestPart();
-	var urlEncodedRequestBody = 
-		"save=yes&content=" + encodeURIComponent(newStore)+
-		(currentPageRequest ? "&"+currentPageRequest : "")+
-		(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
-
-	// And save the new document using a HTML POST request
-	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.onreadystatechange = function()
-	{
-		if (this.readyState == 4) {
-			if(this.status == 200) {
-				if(this.responseText == "saved")
-					onSuccess();
-				else
-					displayMessage("Error while saving. Server:\n"+this.responseText);
-			}
-			else
-				displayMessage("Error while saving, failed to reach the server, status: "+ this.status);
-		}
-	}
-	xmlhttp.open("POST", getOriginalUrl(), true);
-	xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-	xmlhttp.send(urlEncodedRequestBody);
-	/*httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr){
-		if(success) {
-			if(responseText == "saved")
-				onSuccess();
-			else
-				displayMessage("Error while saving. Server:\n"+responseText);
-		} else
-			displayMessage("Error while saving, failed to reach the server, status: "+ xhr.status);
-	}, null, null, urlEncodedRequestBody);*/
-};
 function confirmMainSaved() {
 	// like in saveMain
 	displayMessage(config.messages.mainSaved);
@@ -434,24 +368,27 @@ function setupGranulatedSaving() {
 	}
 
 	window.saveOnlineGranulatedChanges = function() {
-	
+
 		var dataToSend = JSON.stringify(store.getChanges());
-		if(dataToSend == "{}")
+		if(dataToSend == "{}") {
+			store.setDirty(false);
 			return;
-		var currentPageRequest = getCurrentTwRequestPart();
-		var urlEncodedRequestBody = "saveChanges="+encodeURIComponent(dataToSend)+
-			(currentPageRequest ? "&"+currentPageRequest : "")+
-			(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "");
-	
-		httpReq("POST", getOriginalUrl(), function(success, params, responseText, url, xhr) {
-			if(success) {
+		}
+
+		tiddlyBackend.call({
+			method: "POST",
+			onSuccess: function(responseText) {
 				if(responseText == "saved")
 					confirmMainSaved();
 				else
-					displayMessage("Error while saving. Server:\n"+responseText);
-			} else
-				displayMessage("Error while saving, failed to reach the server, status: "+xhr.status);
-		}, null/*params for callback*/, null, urlEncodedRequestBody);
+					displayMessage("Error while saving. Server:\n" + responseText);
+			},
+			onProblem: function(status) {
+				displayMessage("Error while saving, failed to reach the server, status: "+ status);
+			},
+			body: "saveChanges="+encodeURIComponent(dataToSend) +
+				(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
+		});
 	};
 
 	// when successfully saved, update .storedTiddlers etc
@@ -475,8 +412,8 @@ function setupGranulatedSaving() {
 
 function implementRequestProxying() {
 	window.config.orig_noProxy_httpReq = httpReq; //# or use window.httpReq?
-	httpReq = function(type, url, callback, params, headers, data, contentType, username, password, allowCache)
-	{
+	httpReq = function(type, url, callback, params, headers, data, contentType, username, password, allowCache) {
+
 		// in case of request to current MTS;
 		// we don`t try to guess if urls are the same when the ~index.php bit is omitted/added
 		// since we don`t know settings of the index file in the folder;
@@ -504,13 +441,14 @@ function implementRequestProxying() {
 	};
 }
 
-// we need store and other stuff to be defined when we setupGranulatedSaving;
-// chkHttpReadOnly should be set before calculating readOnly
-var noOnlineSaving_invokeParamifier = invokeParamifier;
-invokeParamifier = function(params, handler) {
-
-	if(handler == "onload" && !window.mtsPatch) {
-		window.mtsPatch = true;
+window.tiddlyBackend = {
+	version: {
+		title: "MainTiddlyServer",
+		asString: "' . $version . '"
+	},
+	init: function() {
+		if(this.isInitialized) return;
+		this.isInitialized = true;
 
 		config.options.chkHttpReadOnly = false;
 
@@ -518,31 +456,204 @@ invokeParamifier = function(params, handler) {
 
 		if(isGranulatedSavingSupported())
 			setupGranulatedSaving();
+
+		// override saving
+		window.saveChanges = function(onlyIfDirty, tiddlers) {
+			if(onlyIfDirty && !store.isDirty()) return;
+			return saveOnlineChanges();
+		};
+
+		// decorate copyFile to make it work for backuping on upgrading (sync, returns boolean indicating whether succeeded)
+		var nonBackuping_copyFile = window.copyFile;
+		window.copyFile = function(destinationPath, sourcePath) {
+			// check if was used for creating a backup (see config.macros.upgrade.onClickUpgrade)
+			const backupPathReconstructed = getBackupPath(sourcePath, config.macros.upgrade.backupExtension)
+			const maskTimestamp = (path) => path.replace(/\d/g, "*")
+			if(sourcePath != getLocalPath(document.location.toString())
+			   || maskTimestamp(destinationPath) != maskTimestamp(backupPathReconstructed))
+				return nonBackuping_copyFile.apply(this, arguments);
+
+			const backslash = "\\\\";
+			const slashUsed = destinationPath.indexOf("/") == -1 ? backslash : "/";
+			const pathParts = destinationPath.split(slashUsed);
+			const fileName = pathParts[pathParts.length - 1];
+
+			let success = false;
+			tiddlyBackend.call({
+				method: "POST",
+				onSuccess: function(responseText) { success = responseText === "success" },
+				body: "backupByName=" + encodeURIComponent(fileName) +
+					"&backupFolder=" + encodeURIComponent(config.options.txtBackupFolder),
+				isSync: true
+			})
+
+			return success;
+		};
+	},
+
+	// auxiliary ("private") methods
+	// params: { method?: "GET" | "POST" | ..., headers: { [name:string]: string }, body?: string (data form),
+	// onSuccess?: (responseText ??) => void, onProblem?: (status ??)=>void, isSync?: boolean }
+	call: function(params) {
+		var method = (params.method || "GET").toUpperCase();
+		var url = getOriginalUrl();
+		var body = params.body || null;
+		var headers = params.headers || {};
+		var currentPageRequest = getCurrentTwRequestPart();
+		if(method === "GET") {
+			if(currentPageRequest) url += (url.indexOf("?") == -1 ? "?" : "&") + currentPageRequest;
+		} else {
+			body = !body ? currentPageRequest :
+				body + (currentPageRequest ? "&" + currentPageRequest : "");
+			headers["Content-Type"] = "application/x-www-form-urlencoded";
+		}
+
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function() {
+			if(this.readyState != 4) return;
+			if(this.status == 200) {
+				if(params.onSuccess) params.onSuccess(this.responseText);
+			} else {
+				if(params.onProblem) params.onProblem(this.status, this.responseText);
+			}
+		}
+		xhr.open(method, url, !params.isSync);
+		for(var name in headers) xhr.setRequestHeader(name, headers[name]);
+		xhr.send(body);
+	},
+	loadOriginal: function(onSuccess) {
+		// GET call with default params loads the TW itself
+		this.call({
+			onSuccess: onSuccess,
+			onProblem: function(status) {
+				displayMessage("Error while saving, failed to reach the server and load original, status: "+ status);
+			}
+		});
+	},
+	// original = HTML currently stored on backend
+	updateAndSendMain: function (original, onSuccess) {
+		// Skip any comment at the start of the file..
+		const documentStart = original.indexOf("<!DOCTYPE");
+		original = original.substring(documentStart);
+
+		// ..get updated html..
+		// url to display in the ~saving failed~ message
+		const localPath = document.location.toString();
+		// alerts on fail, so we don`t notify (again)
+		const newHtml = updateOriginal(original, null, localPath);
+		if(!newHtml) return;
+
+		// ..and pass the new document to MTS for saving
+		tiddlyBackend.call({
+			method: "POST",
+			onSuccess: function(responseText) {
+				if(responseText == "saved") onSuccess();
+				else displayMessage("Error while saving. Server:\n" + responseText);
+			},
+			onProblem: function(status, responseText) {
+				displayMessage("Error while saving, failed to reach the server, status: "+ status +"; responseText:");
+				// the only way to show it multiline, as for TW 2.9.3
+				displayMessage(responseText);
+			},
+			body: "save=yes&content=" + encodeURIComponent(newHtml) +
+				(config.options.chkSaveBackups ? ("&backupid=" + (new Date().convertToYYYYMMDDHHMMSSMMM())) : "")
+		});
+	},
+
+	// "public" methods
+	saveTwSnapshot: function() {
+		this.loadOriginal(original => this.updateAndSendMain(original, confirmMainSaved));
+	}
+}
+
+// we need store and other stuff to be defined when we setupGranulatedSaving;
+// chkHttpReadOnly should be set before calculating readOnly
+var noOnlineSaving_invokeParamifier = invokeParamifier;
+invokeParamifier = function(params, handler) {
+
+	if(handler == "onload") {
+		window.tiddlyBackend.init();
 	}
 
 	return noOnlineSaving_invokeParamifier.apply(this, arguments);
 };
 ';
 
-function loadOptions() {
-
-	global $optionsFolder;
-	$oldPath = $optionsFolder . "/" . "options.txt";
-	$newPath = $optionsFolder . "/" . "mts_options.json";
-	if (file_exists($newPath))
-		return json_decode(file_get_contents($newPath), true);
-	if (file_exists($oldPath))
-		return unserialize(file_get_contents($oldPath));
-	return null;
+function lock_and_read_file($path) {
+	//if(!file_exists($path)) return null; // or use  throw new Exception('.. file does not exist');  ?
+	$file = fopen($path, "r");
+	if(!$file) return null; // or use  throw new Exception('failed to open .. file');
+	$locked = flock($file, LOCK_SH);
+	 //* if(!$locked) throw new Exception('failed to lock .. file');
+	$content = file_get_contents($path);
+	flock($file, LOCK_UN); // needed in PHP after 5.3.2
+	fclose($file);
+	return $content;
 }
-function saveOptions($options) {
-
-	global $optionsFolder;
-	//file_put_contents($optionsFolder . "/" . "options.txt", serialize($options));
-	// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
-	$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
-	file_put_contents($optionsFolder . "/" . "mts_options.json", json_encode($options, $pretty_print));
+function lock_and_write_file($path, $content) {
+	return file_put_contents($path, $content, LOCK_EX);
 }
+
+define("DEFAULT_DATAFOLDER_NAME", "main");
+define("DEFAULT_DATAFOLDER_PATH", ".");
+class Options {
+	protected static $optionsFolder;
+	protected static $options;
+	protected static $isChanged;
+	public static function init($optionsFolder) {
+		if(self::$optionsFolder !== null) return;
+		self::$optionsFolder = $optionsFolder;
+		self::$isChanged = false;
+	}
+	public static function load() {
+		// first, read old options as a fallback
+		$oldPath = self::$optionsFolder . "/" . "options.txt";
+		$newPath = self::$optionsFolder . "/" . "mts_options.json";
+		$path = file_exists($newPath) ? $newPath : $oldPath;
+
+		$optionsText = lock_and_read_file($path);
+		self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
+
+		// normalize
+		if(!self::$options['dataFolders'])
+			self::$options['dataFolders'] = [];
+		if(!self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME])
+			self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH;
+	}
+	public static function get($optionName) {
+		//# if($optionName == 'dataFolders') ... return copy of options['dataFolders'] so that they cannot be changed
+		return self::$options[$optionName];
+	}
+	public static function set($optionName, $value, $unsetEmpty = false) {
+		if($optionName == 'dataFolders') return;
+		if($value != self::$options[$optionName])
+			self::$isChanged = true;
+		if(!$value && $unsetEmpty)
+			unset(self::$options[$optionName]); // https://stackoverflow.com/a/25748033/3995261
+		else
+			self::$options[$optionName] = $value;
+	}
+	public static function chooseWorkingFolder($name) {
+		if(self::$options['dataFolders'][$name]) {
+			self::set('workingFolderName', $name);
+		}
+		$workingFolderName = self::get('workingFolderName');
+		if(!$workingFolderName or !array_key_exists($workingFolderName, self::$options['dataFolders']))
+			self::set('workingFolderName', DEFAULT_DATAFOLDER_NAME);
+		return self::get('workingFolderName');
+	}
+	public static function getWorkingFolder() {
+		return self::$options['dataFolders'][self::get('workingFolderName')];
+	}
+	public static function save() {
+		if(!self::$isChanged) return;
+		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
+		$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
+		$path = self::$optionsFolder . "/" . "mts_options.json";
+		return lock_and_write_file($path, json_encode(self::$options, $pretty_print));
+	}
+}
+
 function injectJsToWiki($wikiData) {
 	
 	global $injectedJsHelpers;
@@ -551,25 +662,21 @@ function injectJsToWiki($wikiData) {
 	$x = strpos($wikiData, "function saveMain(");
 	$wikiData = substr($wikiData, 0, $x) . $injectedJsHelpers . substr($wikiData, $x);
 
-	// and the call to it inside saveChanges
-	$sc = strpos($wikiData, "function saveChanges(");
-	$sc2 = strpos($wikiData, "clearMessage", $sc);
-	$wikiData = substr($wikiData, 0, $sc2) . "return saveOnlineChanges();" . substr($wikiData, $sc2);
-
 	return $wikiData;
 }
 function removeInjectedJsFromWiki($content) {
-	
+
 	global $injectedJsHelpers;
 
-	$start = strpos($content, $injectedJsHelpers); //# we imply $injectedJsHelpers is in TW ~html (and is not changed)
-	//# can we avoid implying that $injectedJsHelpers is not present inside TW content?
+	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
+	// we also imply that they are only present in the code (and not inside TW content) == there's just 1 occurrence
+	//# try  return str_replace($injectedJsHelpers, '', $content);  instead (compare times, memory usage)
+	$start = strpos($content, $injectedJsHelpers);
+	if($start === false) {
+		return $content;
+	}
 	$end = $start + strlen($injectedJsHelpers);
-	$content = substr($content, 0, $start) . substr($content, $end); //# try str_replace/str_ireplace instead (compare times)
-	
-	$content = preg_replace('/return saveOnlineChanges\(\);/', '', $content);
-
-	return $content;
+	return substr($content, 0, $start) . substr($content, $end);
 }
 function getTwVersion($wikiFileText) {
 
@@ -577,7 +684,7 @@ function getTwVersion($wikiFileText) {
 	return $match;
 }
 define("EARLIEST_TESTED_VERSION", 20600);
-define("LATEST_TESTED_VERSION", 20902);
+define("LATEST_TESTED_VERSION", 20903);
 function isSupportedTwVersion($versionParts) {
 
 	if(!$versionParts)
@@ -610,14 +717,14 @@ function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 		return false;
 	if(!is_file($file_full_path_and_name))
 		return false;
-	$content = file_get_contents($file_full_path_and_name);
+	$content = lock_and_read_file($file_full_path_and_name);
 	if(!hasSupportedTwVersion($content)) // not TW
 		return false;
 	return true;
 }
 function isInWokringFolder($file_name_in_current_workingFolder) { // file or folder
 	
-	global $workingFolder;
+	$workingFolder = Options::getWorkingFolder();
 	if(!is_dir($workingFolder)) // workingFolder may be unavailable
 		return false;
 	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
@@ -626,10 +733,9 @@ function isInWokringFolder($file_name_in_current_workingFolder) { // file or fol
 // checks whether it's a tw-like html from the current working folder
 function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 
-	global $workingFolder;
 	if(!isInWokringFolder($file_name_in_current_workingFolder))
 		return false;
-	$fullPath = $workingFolder . "/" . $file_name_in_current_workingFolder;
+	$fullPath = Options::getWorkingFolder() . "/" . $file_name_in_current_workingFolder;
 	if(!isTwLike($fullPath))
 		return false;
 	return true;
@@ -658,7 +764,7 @@ function getListOfTwLikeHtmls($folder) {
 };
 function showMtsPage($html, $title = '', $httpStatus = 200) {
 
-	global $options, $optionsLink, $baselink, $wikisLink, $version;
+	global $optionsLink, $baselink, $wikisLink, $version;
 	
 	http_response_code($httpStatus);
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
@@ -728,8 +834,8 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 	echo '</head><body><div class="wrapper">';
 	//# set navigation__link_currently-opened class to the currently opened page + get rid of "Available TiddlyWikis:" on the wikis page
 	echo '<nav class="navigation">';
-	echo   '<a class="navigation__link" href="'.($options['single_wiki_mode'] ? $baselink : $wikisLink).'">'.
-			($options['single_wiki_mode'] ? 'wiki' : 'wikis').'</a>';
+	echo   '<a class="navigation__link" href="'.(Options::get('single_wiki_mode') ? $baselink : $wikisLink).'">'.
+			(Options::get('single_wiki_mode') ? 'wiki' : 'wikis').'</a>';
 	echo   '<a class="navigation__link" href="'. $optionsLink .'">options</a>';
 	echo '</nav>';
 	echo '<main>'. $html .'</main>';
@@ -738,7 +844,7 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 }
 function showOptionsPage() {
 	
-	global $options, $optionsLink, $workingFolder;
+	global $optionsLink;
 	
 	$output = '<style>
 		.options-form__password-panel { padding: 0 1em; }
@@ -755,9 +861,9 @@ function showOptionsPage() {
 	$output .= '<form class="options-form" name="input" action="' . $optionsLink . '" method="post">' .
 				 '<input type="hidden" name="options">';
 	
-	// workingFolder: list $dataFolders' names, send to further save $options['workingFolderName']
-	/*$folders = $options['dataFolders'];
-	$selected = $options['workingFolderName'];
+	// workingFolder: list Options::get('dataFolders')'s names, send to further save Options 'workingFolderName'
+	/*$folders = Options::get('dataFolders');
+	$selected = Options::get('workingFolderName');
 	$output .= '<p>Use this location: <select name="foldername">';
 	foreach ($folders as $name => $path) {
 		$output .= "<option value=\"$name\"" . ($name == $selected ? " selected" : "") . ">$name</option>\n";
@@ -768,17 +874,17 @@ function showOptionsPage() {
 	//# this should cause updating of the wikis dropdown.. or the latter should be removed from ?options
 	
 	// wiki
-	$files = getListOfTwLikeHtmls($workingFolder);
+	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	$output .= '<p>Use this wiki file: <select name="wikiname">';
 	foreach ($files as $fileName) {
 	
 		// avoid showing backups (legacy of MicroTiddlyServer)
 		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
 			continue;
-		$output .= "<option value=\"$fileName\"" . ($fileName == $options['wikiname'] ? " selected" : "") . ">$fileName</option>\n";
+		$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
 	}
 	$output .= '</select></p>';
-	$output .= '<p><label><input type="checkbox" '.($options['single_wiki_mode'] ? 'checked=checked' : '').
+	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
 				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
@@ -794,7 +900,7 @@ function showOptionsPage() {
 	     '</div>';
 	
 	// memory limit
-	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . $options['memory_limit'] . 
+	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
 		" (increase if your TW is large and saving doesn't work, try values like 6 * size of your TW;" .
 		" leave blank to restore default value)</p>";
@@ -805,8 +911,6 @@ function showOptionsPage() {
 	showMtsPage($output, "Options");
 }
 function showWikisList() {
-
-	global $workingFolder;
 
 	// for screens large enough (in fact, for devices with keyboard),
 	// visualize selection and allow navigation via keyboard
@@ -829,7 +933,7 @@ function showWikisList() {
 	'<div class="wikis-list">'.
 	 "<p>Available TiddlyWikis:</p>" .
 	 '<ul class="wikis-list__list">';
-	 $htmls = getListOfTwLikeHtmls($workingFolder);
+	 $htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	 foreach ($htmls as $name)
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
@@ -872,9 +976,10 @@ function showWikisList() {
 // or TW is served via ?wiki=wikiname.html request
 function showTW($fullPath = '', $pathToShowOnError = '') {
 
-	global $version, $options, $optionsLink, $workingFolder;
+	global $version, $optionsLink;
 	
-	$wikiName = $options['wikiname'];
+	$workingFolder = Options::getWorkingFolder();
+	$wikiName = Options::get('wikiname');
 	$wikiPath = $fullPath ? $fullPath : ($workingFolder . "/" . $wikiName);
 	if(!$pathToShowOnError) $pathToShowOnError = $wikiName;
 //# if ?wiki=.. is not set and it is not single_wiki_mode, change path to ?wiki=.. (http 30_ redirect?)
@@ -891,7 +996,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 			"<p>Select a wiki file on the <a href='$optionsLink'>options page</a></p>", '', 404);
 		return false;
 	}
-	$wikiData = file_get_contents($wikiPath);
+	$wikiData = lock_and_read_file($wikiPath);
 	
 	// if the version isn't supported, show that
 	$versionParts = getTwVersion($wikiData);
@@ -936,8 +1041,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 }
 function showWikisOrWiki() {
 
-	global $options;
-	if($options['single_wiki_mode'])
+	if(Options::get('single_wiki_mode'))
 		showTW();
 	else
 		showWikisList();
@@ -950,7 +1054,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
-	
+
 	// a helper
 	function preg_offset($pattern, $text, $skip) {
 		preg_match($pattern, $text, $match, PREG_OFFSET_CAPTURE);
@@ -960,13 +1064,13 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	}
 
 	// get wiki content
-	$wikiText = file_get_contents($wikiPath);
+	$wikiText = lock_and_read_file($wikiPath);
 	if($debug_mode) {
 		$memoryUsageBeforeUpdate = memory_get_usage();
 		$memoryPeakUsageBeforeUpdate = memory_get_peak_usage();
 		file_put_contents('test_incremental_saving__was.txt', $wikiText);
 	}
-	
+
 	$LINEBREAK = '(?:\r?\n)';
 	// split html into parts before store, store itself and after store (using DOMDocument fails with TWc, see test_dom.php)
 	$re_store_area_div = '/<[dD][iI][vV] id=["\']?storeArea["\']?>'.$LINEBREAK.'?/'; //<div id="storeArea">\n
@@ -982,7 +1086,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	//^ second considerable load and peak rise in memory usage
 	unset($wikiText); // no longer needed, spare memory
 //# return error msg if $beforeStorePart or $afterStorePart is empty (~wrong format/not a TW, .. not found)
-	
+
 	// extract tiddlers into $tiddlersMap (divs inside #storeArea, see updateOriginal)
 	$re_stored_tiddler = '#<div [^>]+>\s*<pre>[^<]*?</pre>\s*</div>#';
 	preg_match_all($re_stored_tiddler, $storePart, $tiddlersArray); //# can we use explode instead?
@@ -1003,7 +1107,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	if($debug_mode) {
 		file_put_contents('test_store_area_locating.txt', '$tiddlersMap length: '.count($tiddlersMap).":\n\n".print_r($tiddlersMap, true));
 	}
-	
+
 	// apply tiddler changes
 	if($debug_mode) {
 		file_put_contents('test_changes_parsing.txt', print_r($changes, true));
@@ -1055,7 +1159,7 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 // actually, we don't even need to concatenate these: we can use fwrite() and save those one-by one
 	if($debug_mode) {
 		file_put_contents('test_incremental_saving__became.txt', $wikiText);
-		
+
 		$memoryUsageAfterUpdate = memory_get_peak_usage();
 
 		file_put_contents('test_memory_usage.txt',
@@ -1065,9 +1169,9 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 			"\npeak in process: ".$memoryPeakUsageMiddleOfUpdate.
 			"\nafter: ".$memoryUsageAfterUpdate);
 	}
-	
+
 	// save changed wiki
-	$saved = file_put_contents($wikiPath, $wikiText);
+	$saved = lock_and_write_file($wikiPath, $wikiText);
 	if(!$saved)
 		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
@@ -1087,7 +1191,7 @@ function getImageFromBase64AndSave($data, $path, $name)
 	
 	$imgBase64String = substr($imgBase64String, $separatorPosition + 1);
 	$imgString = base64_decode($imgBase64String);
-	file_put_contents($path . $name . '.' . $type, $imgString);
+	$saved = file_put_contents($path . $name . '.' . $type, $imgString);
 	// using $type as file extensions is ok for png, jpeg;
 	// for SVGs it will be svg+xml, but will there be SVGs pasted as base64?
 };
@@ -1098,7 +1202,7 @@ function loadImageByUrlAndSave($url, $path, $name)
 	$type = "png";
 	//# check for request errors (see $http_response_header, http://php.net/manual/en/reserved.variables.httpresponseheader.php),
 	//# ensure we got an image, get its type automatically
-	file_put_contents($path . $name . "." . $type, $img);
+	$saved = file_put_contents($path . $name . "." . $type, $img);
 };
 function getImageByUriAndSave($url, $path, $name)
 {
@@ -1121,32 +1225,19 @@ function getImageByUriAndSave($url, $path, $name)
 // set folders used by server and load options:
 $serverFolder  = ".";
 $optionsFolder = $serverFolder;
-$options = loadOptions();
+Options::init($optionsFolder);
+Options::load();
 
-// choose $workingFolder among $dataFolders
-define("DEFAULT_DATAFOLDER_NAME", "main");
-define("DEFAULT_DATAFOLDER_PATH", ".");
-// available folders
-$dataFolders = $options['dataFolders'];
-if(!$dataFolders[DEFAULT_DATAFOLDER_NAME])
-	$dataFolders[DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH; //# disallow overwriting?
-// folder choice (on any request):
-$requestedFolder = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
-if($dataFolders[$requestedFolder])
-	$options['workingFolderName'] = $requestedFolder;
-else
+// choose workingFolder among dataFolders (on any request):
+$requestedFolderName = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
+if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolder)
 	; //# notify user somehow!
-if(!$options['workingFolderName'])
-	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
-if(!array_key_exists($options['workingFolderName'],$dataFolders))
-	$options['workingFolderName'] = DEFAULT_DATAFOLDER_NAME;
-$workingFolder = $dataFolders[$options['workingFolderName']];
+$workingFolder = Options::getWorkingFolder();
 
 $system_memory_limit = ini_get('memory_limit');
-if($options['memory_limit'])
-	ini_set('memory_limit',$options['memory_limit']);
-else
-	$options['memory_limit'] = ini_get('memory_limit');
+$memory_limit = Options::get('memory_limit');
+if($memory_limit)
+	ini_set('memory_limit', $memory_limit);
 
 // calc interface links
 $port = $_SERVER['SERVER_PORT'];
@@ -1155,45 +1246,36 @@ $baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCR
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 function getFullWikiLink($nameOrPath) {
-	global $baselink, $options;
+	global $baselink;
 	//# deal with '#' in filename (substitute with %23)
-	if($options['single_wiki_mode'])
+	if(Options::get('single_wiki_mode'))
 		return $baselink;
 	$link = $baselink . '?';
-	if($options['workingFolderName'] && count((array)$options['dataFolders']) > 1)
-		$link .= 'folder=' . $options['workingFolderName'] . '&';
+	if(Options::get('workingFolderName') && count((array)Options::get('dataFolders')) > 1)
+		$link .= 'folder=' . Options::get('workingFolderName') . '&';
 	return $link . 'wiki=' . str_replace('+', '%2B', $nameOrPath);
 }
 
-// If this is an AJAX request to save the file, do so, for incremental changes echo 'saved' on success and error on fail
+// If this is an AJAX request to save the file, do so, for incremental changes respond 'saved' on success and error on fail
 if (isset($_POST['save']) || isset($_POST['saveChanges']))
 {
-	// decide which wiki should be changed
-	$wikiPath = $workingFolder . "/";
-	if(!$_POST['wiki'])
-		$wikiPath .= $options['wikiname'];
-	// support saving by ?save=yes&wiki=wikiname.html requests – inside current folder
-	else if(isTwInWorkingFolder($_POST['wiki'])) {
-		$wikiPath .= $_POST['wiki'];
-	} else { // not sure if this will happen at all
-		echo 'error: "'.$_POST['wiki'].'" is not a valid TiddlyWiki in the working folder';
-		//# send 404?
+	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
+	if(!isTwInWorkingFolder($nameOfTwToUpdate)) {
+		http_response_code(404);
+		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
 		return;
 	}
+	$wikiPath = $workingFolder . "/" . $nameOfTwToUpdate;
 
 	// first, backup if required
 	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
-	if($backupId)
-		copy($wikiPath, $wikiPath . ".$backupId.html");
+	if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
 
 	// then save
-//# check if wiki exists (it may have been moved or removed)
 	if(isset($_POST['save'])) {
-		$content = $_POST['content'];
-		$content = removeInjectedJsFromWiki($content);
-//# check if putting ↑ into 1 line reduces memory usage
+		$content = removeInjectedJsFromWiki($_POST['content']);
 //# .oO can removeInjectedJsFromWiki fail?
-		$saved = file_put_contents($wikiPath, $content);
+		$saved = lock_and_write_file($wikiPath, $content);
 		echo $saved ? 'saved' :
 			"MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
@@ -1201,18 +1283,55 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 	} else { // incremental saving from the saveChanges request
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
-		$errors = updateTW($wikiPath,$changes);
+		$errors = updateTW($wikiPath, $changes);
 		$successStatus = $errors ? $errors : 'saved';
 		echo $successStatus;
 	}
 }
+// For a backup request, respond with 'success' or a string explaining the problem
+else if (isset($_POST['backupByName']))
+{
+	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
+	if(!isTwInWorkingFolder($twToBackupFileName)) {
+		http_response_code(404);
+		exit("error: \"$twToBackupFileName\" is not a valid TiddlyWiki in the working folder");
+	}
+	$twToBackup = $workingFolder . "/" . $twToBackupFileName;
+
+	// remove chars other than -_.a-zA-Z0-9 from file name
+	$backupFileName = preg_replace("/[^\w-_\.]/", '', $_POST['backupByName']);
+	$requestedBackupSubfolder = $_POST['backupFolder'];
+	$defaultTwBackupFolder = "backups";
+	// only allow current folder and direct subfolders
+	if(!$requestedBackupSubfolder) {
+		$backupSubfolder = $defaultTwBackupFolder;
+	} else {
+		if(preg_match("/^[\w\.]+$/", $requestedBackupSubfolder) && $requestedBackupSubfolder != '..') {
+			$backupSubfolder = $requestedBackupSubfolder;
+		} else {
+			http_response_code(403);
+			exit("error: $requestedBackupSubfolder is not allowed as a backup subfolder");
+		}
+	}
+	$backupFolder = $workingFolder . "/" . $backupSubfolder;
+	if(!file_exists($backupFolder)) mkdir($backupFolder, 0777, true);
+	$backupPath = $backupFolder . "/" . $backupFileName;
+	// $backupPath file exists, will overwrite
+
+	set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+		http_response_code(500);
+		exit("error when trying to make a backup copy: $errstr (errno $errno)");
+	});
+	$success = copy($twToBackup, $backupPath);
+	restore_error_handler();
+
+	// unsure if we can in fact end up here with falsy $success
+	echo $success ? 'success' : 'creating backup failed';
+}
 else if (isset($_POST['options']))
 {
 	function setOption($name, $unsetEmpty = false) {
-		global $options;
-		$options[$name] = $_POST[$name];
-		if($unsetEmpty && !$options[$name])
-			unset($options[$name]); // https://stackoverflow.com/a/25748033/3995261
+		Options::set($name, $_POST[$name], $unsetEmpty);
 	}
 
 	// $_REQUEST['folder'] is processed "globally" (see above)
@@ -1231,10 +1350,10 @@ else if (isset($_POST['options']))
 	
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
-		unset($options['memory_limit']);
+		Options::set('memory_limit', '', true);
 	
-	saveOptions($options);
-	$output = '<p>Active wiki set to ' . $options['wikiname'] . '</p>';
+	$saved = Options::save();
+	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
 
 	if (isset($_POST['setpassword']))
 	{
@@ -1248,18 +1367,19 @@ else if (isset($_POST['options']))
 		else {
 			// set .htaccess and .htpasswd (apache 2.2.17 and below)
 			//# use apache_get_version() or $_SERVER['SERVER_SOFTWARE'] to tell that the password won't work when it is so
-			$htaccess = '<Files ~ "^\.(htaccess|htpasswd)$">
-Deny from all
-</Files>
-<FilesMatch "^(options\.txt|mts_options\.json)$">
-Deny from all
-</FilesMatch>
-ErrorDocument 401 "401 - Wrong Password"
-AuthName "Please enter your ID and password"
-AuthType Basic
-Require valid-user
-AuthGroupFile /dev/null
-AuthUserFile "' . getcwd() . '/.htpasswd"';
+			$htaccess = '
+			<Files ~ "^\.(htaccess|htpasswd)$">
+				Deny from all
+			</Files>
+			<FilesMatch "^(options\.txt|mts_options\.json)$">
+				Deny from all
+			</FilesMatch>
+			ErrorDocument 401 "401 - Wrong Password"
+			AuthName "Please enter your ID and password"
+			AuthType Basic
+			Require valid-user
+			AuthGroupFile /dev/null
+			AuthUserFile "' . getcwd() . '/.htpasswd"';
 			$htpasswd = $userName . ':' . crypt($passWord, base64_encode($passWord));
 
 			file_put_contents($serverFolder . "/" . ".htaccess", $htaccess);
@@ -1270,7 +1390,7 @@ AuthUserFile "' . getcwd() . '/.htpasswd"';
 		}
 	}
 
-	$wikiLink = getFullWikiLink($options['wikiname']);
+	$wikiLink = getFullWikiLink(Options::get('wikiname'));
 	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$wikiLink'>$wikiLink</a></p>";
 	showMtsPage($output);
 }
@@ -1399,9 +1519,8 @@ else if (isset($_REQUEST['proxy_to']))
 
 		// check if it's among dataFolders (consider them as white-list of allowed folders) or their subfolders
 		$allowed = false;
-		foreach($dataFolders as $allowedPath)
+		foreach(Options::get('dataFolders') as $allowedPath)
 			if(strpos($absolutePath, str_replace('\\', '/', $allowedPath)) === 0) // was: $absolutePath == str_replace('\\', '/', $allowedPath)
-			//# does this alter $dataFolders[] ?
 				$allowed = true;
 
 		// if it is a TW(-like) file, serve it
@@ -1496,7 +1615,7 @@ else if (isset($_GET['wiki'])) {
 	}
 	showTW($workingFolder . "/" . $_GET['wiki'], $_GET['wiki']);
 } else {
-	if($options['wikiname'])
+	if(Options::get('wikiname'))
 		showWikisOrWiki();
 	else
 		showOptionsPage();
