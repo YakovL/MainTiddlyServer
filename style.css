@@ -85,11 +85,11 @@ main header {
 	margin-top: 1.0em; margin-bottom: 0.3em;
 }
 main :first-child header { margin-top: 0em; }
-main p, main section>ul, main section>ol {
+main p, main section > ul, main section > ol {
 	margin-top: 0.2em; margin-bottom: 0.2em;
 }
 main ul, main ol { padding-left: 1.6em; }
-main a { color: var(--darkish); }
+main a { color: inherit; opacity: 0.5; }
 
 .donation-form {
 	display: flex;
