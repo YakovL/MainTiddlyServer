@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.0';
+$version = '1.7.1';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,8 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.1
+	+ introduced color theme and dark mode support (follows OS mode) to both MTS and docs pages
 	1.7.0
 	+ reduced injected JS to just one chunk, simplified injecting/removing on backend,
 	  fixed removeInjectedJsFromWiki for upgrading TW: don't modify the file if injected bits are not found
@@ -773,19 +775,46 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 	echo	'<meta name="viewport" content="width=device-width, initial-scale=1" />';
 	if($title)
 		echo "<title>MainTiddlyServer – $title</title>";
-	$colorOutside = '#777777';
-	$colorBackground = 'white'; $colorForeground = 'black'; $colorLink = ''; $colorLinkVisited = '';
-	$colorNavFooterBackground = 'white'; $colorNavFooterLink = 'black';
-	/* possible color scheme:
-	$colorBackground = $colorNavFooterLink = '#ffffdd';
-	$colorForeground = $colorNavFooterBackground = '#0000bb';
-	*/
 	echo	'<style>
 				@import url("https://fonts.googleapis.com/css?family=Roboto:400,700");
 				body { font-family: "Roboto", sans-serif; font-size: 15px; }
 
+				:root {
+					--color-outside: #888577;
+					--color-background: rgb(246, 234, 196);
+					--color-foreground: black;
+					/*--color-link: ;
+					--color-link-visited: ;*/
+					--color-nav-and-footer-background: black;
+					--color-nav-and-footer-link: rgb(246, 234, 196);
+					--color-selection: #b7b69f;
+				}
+				main a {
+					color: inherit;
+    				opacity: 0.6;
+				}
+				::selection {
+					background: var(--color-selection);
+				}
+				@media (prefers-color-scheme: dark) {
+					:root {
+						--color-outside: #373630;
+						--color-background: black;
+						--color-foreground: rgb(150, 143, 120);
+						--color-nav-and-footer-background: black;
+						--color-nav-and-footer-link: rgb(150, 143, 120);
+						--color-selection: rgba(150, 143, 120, 0.5);
+					}
+
+					html {
+						color-scheme: dark;
+					}
+				}
+
 				input, select, textarea { font-family: inherit; font-size: inherit; padding-left: 0.2em; }
-				select { background: inherit; }
+				select { background: inherit; color: inherit; }
+				option { background: var(--color-background); }
+				/* the hover and selected ones are more complecated, see https://stackoverflow.com/q/10484053/3995261 and https://stackoverflow.com/q/8619406/3995261 */
 				input[type="text"] {  } /* keep disabled in mind */
 				
 				body {
@@ -822,14 +851,14 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 					padding-bottom: 1em;
 				}
 				
-				body { background-color: '.$colorOutside.'; }
+				body { background-color: var(--color-outside); }
 				.wrapper {
-					background-color: '.$colorBackground.';
-					color: '.$colorForeground.';
+					background-color: var(--color-background);
+					color: var(--color-foreground);
 				}
-				/**/
-				nav, footer { background-color: '.$colorNavFooterBackground.'; }
-				nav a, footer a { color: '.$colorNavFooterLink.'; }
+
+				nav, footer { background-color: var(--color-nav-and-footer-background); }
+				nav a, footer a { color: var(--color-nav-and-footer-link); }
 			 </style>';
 	echo '</head><body><div class="wrapper">';
 	//# set navigation__link_currently-opened class to the currently opened page + get rid of "Available TiddlyWikis:" on the wikis page
@@ -917,12 +946,13 @@ function showWikisList() {
 	$output = '<style>
 			p, ul { margin: 0.5em 0; }
 			.wikis-list { text-align: center; }
-			.wikis-list__list { display: inline-block; padding-left: 0; }
-			.wikis-list__item { text-align: left; padding: 0 0.5em; list-style: none; }
+			.wikis-list__title { margin: 1.4em 0 0; }
+			.wikis-list__list { text-align: left; display: inline-block; padding-left: 0; }
+			.wikis-list__item { padding: 0.3em 0.5em; list-style: none; border-radius: 5px; }
 			.keyboard-only { display: none; }
 			/* rough detection of non-touch device */
 			@media screen and (min-width: 700px) {
-				.selected { background-color: #ddddff; }
+				.selected { background-color: var(--color-selection); }
 				:focus { outline: none; }
 				.keyboard-only { display: block; }
 			}
@@ -931,7 +961,7 @@ function showWikisList() {
 			}
 		</style>' . //# refine the min-device-width value (ps,ph)
 	'<div class="wikis-list">'.
-	 "<p>Available TiddlyWikis:</p>" .
+	 '<p class="wikis-list__title">Available TiddlyWikis:</p>' .
 	 '<ul class="wikis-list__list">';
 	 $htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	 foreach ($htmls as $name)
