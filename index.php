@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.0';
+$version = '1.7.1';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,7 +116,8 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
-	+ introduced color theme and dark mode support (follows OS mode)
+	1.7.1
+	+ introduced color theme and dark mode support (follows OS mode) to both MTS and docs pages
 	1.7.0
 	+ reduced injected JS to just one chunk, simplified injecting/removing on backend,
 	  fixed removeInjectedJsFromWiki for upgrading TW: don't modify the file if injected bits are not found
