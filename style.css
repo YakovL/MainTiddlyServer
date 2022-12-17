@@ -110,6 +110,21 @@ main a { color: inherit; opacity: 0.5; }
 }
 
 ::selection {
-	background: #bbbbbb;
+	background: #b7b69f;
 }
 /* scrollbars and parts of browser interface are also grey */
+
+@media (prefers-color-scheme: dark) {
+	:root {
+	  --darkish: #373630;
+	  --primary-rgb: 150, 143, 120;
+	}
+	.wrapper {
+	  color: rgb(var(--primary-rgb));
+	  background: rgba(0, 0, 0, 0.5);
+	}
+	main a { opacity: 0.7; }
+	::selection {
+	  background: rgba(var(--primary-rgb), 0.3);
+	}
+}
