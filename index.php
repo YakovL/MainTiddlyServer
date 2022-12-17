@@ -968,7 +968,7 @@ function showWikisList() {
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
-	"<p class='keyboard-only'>You can use keyboard to navigate (&uarr;/&darr;/home/end) between wikis and open them (enter).</p>" .
+	"<p class='keyboard-only'>You can use keyboard to select a wiki (&uarr;/&darr;/home/end) and to open it (enter).</p>" .
 	'<script>;
 	var items = document.getElementsByTagName("li"), selected,
 	    select = function(index) {
