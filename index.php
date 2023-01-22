@@ -1577,6 +1577,7 @@ else if (isset($_REQUEST['proxy_to']))
 	 //# better to use some tested methods (http_build_url from PECL>=0.21.0?) – may be copy implementation
 	
 	// pass the rest, get response, send back
+	$proxy_debug_file = 'proxy_debug_info.txt';
 	if($doProxy) {
 		$curl_session = curl_init($requestedUrl);
 		// return results by curl_exec to $proxiedRequestResponse instead of printing
@@ -1585,16 +1586,20 @@ else if (isset($_REQUEST['proxy_to']))
 		//# ...
 		//# learn CURLOPT_FOLLOWLOCATION; use CURLOPT_HEADER when needed
 		$proxiedRequestResponse = curl_exec($curl_session);
-		if($proxiedRequestResponse === false) {
+		$failedToLoad = $proxiedRequestResponse === false;
+		if($failedToLoad) {
 			$request_error = curl_error($curl_session);
-			//# deal with errors, use $request_error
+			http_response_code(500);
+			$debug_mode = true;
 		}
 		// may also use curl_getinfo for additional info like times of different ~stages, sizes of different ~parts and others
 		curl_close($curl_session);
 
 		// respond back to TW
 		//# set headers
-		print $proxiedRequestResponse; // response body
+		// response body
+		print !$failedToLoad ? $proxiedRequestResponse :
+			"MTS proxy failed to get requested data, details can be found in $proxy_debug_file";
 	}
 	
 	// print debug info
@@ -1628,7 +1633,7 @@ else if (isset($_REQUEST['proxy_to']))
 		$test_message .= "\n\n" . 'request error: ' . $request_error . "\n";
 		$test_message .= "response:\n\n" . $proxiedRequestResponse . "\n";
 		//$test_message .= '$_SERVER: ' . print_r($_SERVER,true);
-		file_put_contents('test_proxy.txt', $test_message);
+		file_put_contents($proxy_debug_file, $test_message);
 	}
 }
 else if (isset($_GET['wikis'])) {
