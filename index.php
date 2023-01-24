@@ -745,6 +745,7 @@ function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 function getListOfTwLikeHtmls($folder) {
 
 	$twLikeHtmls = [];
+	if(!is_dir($folder)) return null;
 	$filesAndFolders = scandir($folder);
 	foreach ($filesAndFolders as $name) {
 		$fullPath = $folder . "/" . $name;
@@ -893,15 +894,19 @@ function showOptionsPage() {
 	
 	// wiki
 	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
-	$output .= '<p>Use this wiki file: <select name="wikiname">';
-	foreach ($files as $fileName) {
-	
-		// avoid showing backups (legacy of MicroTiddlyServer)
-		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
-			continue;
-		$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
+	if(is_null($files)) {
+		$output .= '<p><i>The chosen working folder is currently unavailable</i></p>';
+	} else {
+		$output .= '<p>Use this wiki file: <select name="wikiname">';
+		foreach ($files as $fileName) {
+		
+			// avoid showing backups (legacy of MicroTiddlyServer)
+			if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
+				continue;
+			$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
+		}
+		$output .= '</select></p>';	
 	}
-	$output .= '</select></p>';
 	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
 				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
@@ -949,10 +954,18 @@ function showWikisList() {
 				.wikis-list__item { padding-top: 0.25em; padding-bottom: 0.25em; }
 			}
 		</style>' . //# refine the min-device-width value (ps,ph)
-	'<div class="wikis-list">'.
+	'<div class="wikis-list">';
+
+	$htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
+	if(is_null($htmls)) {
+		$output .= '<p class="wikis-list__title">The chosen working folder is not available</p>' . '</div>';
+		showMtsPage($output, "Wikis: working folder unavailable");
+		return;
+	}
+
+	$output .=
 	 '<p class="wikis-list__title">Available TiddlyWikis:</p>' .
 	 '<ul class="wikis-list__list">';
-	 $htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	 foreach ($htmls as $name)
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
