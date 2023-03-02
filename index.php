@@ -943,6 +943,8 @@ function showWikisList() {
 			.wikis-list__title { margin: 1.4em 0 0; }
 			.wikis-list__list { text-align: left; display: inline-block; padding-left: 0; }
 			.wikis-list__item { padding: 0.3em 0.5em; list-style: none; border-radius: 5px; }
+
+			.hint { opacity: 0.4; text-align: center; }
 			.keyboard-only { display: none; }
 			/* rough detection of non-touch device */
 			@media screen and (min-width: 700px) {
@@ -970,7 +972,7 @@ function showWikisList() {
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
-	"<p class='keyboard-only'>You can use keyboard to select a wiki (&uarr;/&darr;/home/end) and to open it (enter).</p>" .
+	"<p class='keyboard-only hint'>You can use keyboard to select a wiki (&uarr;/&darr;/home/end) and to open it (enter).</p>" .
 	'<script>;
 	var items = document.getElementsByTagName("li"), selected,
 	    select = function(index) {
