@@ -871,9 +871,9 @@ function showOptionsPage() {
 		.memory-limit-input { width: 6em; }
 	</style>
 	<script type="text/javascript">
-		function enablePasswordSetting(isEnabled) {
-			document.getElementById("un").disabled = !isEnabled;
-			document.getElementById("pw").disabled = !isEnabled;
+		function togglePasswordSetting(isEnabled) {
+			const passInputsArea = document.getElementsByClassName("options-form__password-inputs")[0];
+			passInputsArea.style.display = isEnabled ? "" : "none";
 		}
 	</script>';
 	
@@ -911,16 +911,25 @@ function showOptionsPage() {
 				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
-	$output .= '<div class="options-form__password-panel">' .
-	     '<p><label><input type="checkbox" name="setpassword" onclick="enablePasswordSetting(this.checked)">Change or set a password</label></p>';
-	if (!file_exists('.htaccess'))
-		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
-	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i></p>' .
-	       '<table><tbody>'.
-	         '<tr><td><label for="un">Username:</label></td> <td><input type="text" name="un" id="un" disabled="disabled"></td></tr>' .
-	         '<tr><td><label for="pw">Password:</label></td> <td><input type="text" name="pw" id="pw" disabled="disabled"></td></tr>' .
-	       '</table></tbody>'.
-	     '</div>';
+	$output .=
+	'<div class="options-form__password-panel">' .
+	  '<p><label><input type="checkbox" name="setpassword" onclick="togglePasswordSetting(this.checked)">Change or set a password</label></p>';
+	// gives false negatives (.htaccess may be without pass)
+	$noPassSet = !file_exists('.htaccess');
+	if($noPassSet) {
+		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file.' .
+			' If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies ' .
+			'and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
+	}
+	$output .=
+	  '<div class="options-form__password-inputs" style="display: none;">' .
+	    '<p><i>Use only letters (lower- and uppercase) and numbers</i></p>' .
+	    '<table><tbody>' .
+	      '<tr><td><label for="un">Username:</label></td> <td><input type="text" name="un" id="un"></td></tr>' .
+	      '<tr><td><label for="pw">Password:</label></td> <td><input type="text" name="pw" id="pw"></td></tr>' .
+	    '</table></tbody>' .
+	  '</div>'.
+	'</div>';
 	
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
