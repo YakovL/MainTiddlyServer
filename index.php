@@ -872,6 +872,10 @@ function showOptionsPage() {
 		.options-form__password-panel { padding: 0 1em; }
 		.no-password-warning { color: red; }
 		.memory-limit-input { width: 6em; }
+		button {
+			cursor: pointer;
+			padding: 0.3em 0.6em;
+		}
 	</style>
 	<script type="text/javascript">
 		function togglePasswordSetting(isEnabled) {
