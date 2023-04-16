@@ -801,8 +801,11 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 					}
 				}
 
-				input, select, textarea { font-family: inherit; font-size: inherit; padding-left: 0.2em; }
-				input, textarea, select { background: inherit; color: inherit; }
+				input, textarea, select {
+					background: inherit;
+					color: inherit;
+					border: thin solid black;
+				}
 				option { background: var(--color-background); }
 				/* the hover and selected ones are more complecated, see https://stackoverflow.com/q/10484053/3995261 and https://stackoverflow.com/q/8619406/3995261 */
 				input[type="text"] {  } /* keep disabled in mind */
