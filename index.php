@@ -937,8 +937,8 @@ function showOptionsPage() {
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
-		" (increase if your TW is large and saving doesn't work, try values like 6 * size of your TW;" .
-		" leave blank to restore default value)</p>";
+		" (increase if your TW is large and saving doesn't work, try values like 6 *  the size of your TW;" .
+		" leave blank to restore the default value)</p>";
 
 	$output .= '<p><button type="submit">Save</button></p>';
 	$output .= '</form>';
