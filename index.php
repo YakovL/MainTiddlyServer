@@ -657,11 +657,12 @@ class Options {
 }
 
 function injectJsToWiki($wikiData) {
-	
+
 	global $injectedJsHelpers;
-	
-	// inject the new saving function before saveMain definition
-	$x = strpos($wikiData, "function saveMain(");
+
+	// inject the new saving function before saveMain definition (make sure it's not inside storeArea)
+	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
+	$x = strpos($wikiData, "function saveMain(", $endOfStoreArea);
 	$wikiData = substr($wikiData, 0, $x) . $injectedJsHelpers . substr($wikiData, $x);
 
 	return $wikiData;
@@ -670,10 +671,10 @@ function removeInjectedJsFromWiki($content) {
 
 	global $injectedJsHelpers;
 
+	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
-	// we also imply that they are only present in the code (and not inside TW content) == there's just 1 occurrence
-	//# try  return str_replace($injectedJsHelpers, '', $content);  instead (compare times, memory usage)
-	$start = strpos($content, $injectedJsHelpers);
+	//# try to use  substr_replace  instead (compare times, memory usage)
+	$start = strpos($content, $injectedJsHelpers, $endOfStoreArea);
 	if($start === false) {
 		return $content;
 	}
