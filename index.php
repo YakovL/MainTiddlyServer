@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.1';
+$version = '1.7.2';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,10 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
+	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
+	+ made injected js work correctly even when similar bits are inside storeArea
+	+ several UI improvements
 	1.7.1
 	+ introduced color theme and dark mode support (follows OS mode) to both MTS and docs pages
 	1.7.0
@@ -248,11 +252,6 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function confirmMainSaved() {
-	// like in saveMain
-	displayMessage(config.messages.mainSaved);
-	store.setDirty(false);
-};
 function getOriginalUrl() {
 	// use document.location.host so that custom ports are supported
 	return document.location.protocol + "//" + document.location.host + document.location.pathname;
@@ -381,7 +380,7 @@ function setupGranulatedSaving() {
 			method: "POST",
 			onSuccess: function(responseText) {
 				if(responseText == "saved")
-					confirmMainSaved();
+					tw.io.onSaveMainSuccess();
 				else
 					displayMessage("Error while saving. Server:\n" + responseText);
 			},
@@ -453,6 +452,16 @@ window.tiddlyBackend = {
 		this.isInitialized = true;
 
 		config.options.chkHttpReadOnly = false;
+
+		// before TW 2.9.4
+		if(!window.tw) window.tw = {
+			io: {
+				onSaveMainSuccess: function() {
+					displayMessage(config.messages.mainSaved);
+					store.setDirty(false);
+				}
+			}
+		};
 
 		implementRequestProxying();
 
@@ -564,7 +573,7 @@ window.tiddlyBackend = {
 
 	// "public" methods
 	saveTwSnapshot: function() {
-		this.loadOriginal(original => this.updateAndSendMain(original, confirmMainSaved));
+		this.loadOriginal(original => this.updateAndSendMain(original, tw.io.onSaveMainSuccess));
 	}
 }
 
@@ -657,11 +666,12 @@ class Options {
 }
 
 function injectJsToWiki($wikiData) {
-	
+
 	global $injectedJsHelpers;
-	
-	// inject the new saving function before saveMain definition
-	$x = strpos($wikiData, "function saveMain(");
+
+	// inject the new saving function before saveMain definition (make sure it's not inside storeArea)
+	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
+	$x = strpos($wikiData, "function saveMain(", $endOfStoreArea);
 	$wikiData = substr($wikiData, 0, $x) . $injectedJsHelpers . substr($wikiData, $x);
 
 	return $wikiData;
@@ -670,10 +680,10 @@ function removeInjectedJsFromWiki($content) {
 
 	global $injectedJsHelpers;
 
+	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
-	// we also imply that they are only present in the code (and not inside TW content) == there's just 1 occurrence
-	//# try  return str_replace($injectedJsHelpers, '', $content);  instead (compare times, memory usage)
-	$start = strpos($content, $injectedJsHelpers);
+	//# try to use  substr_replace  instead (compare times, memory usage)
+	$start = strpos($content, $injectedJsHelpers, $endOfStoreArea);
 	if($start === false) {
 		return $content;
 	}
@@ -686,7 +696,7 @@ function getTwVersion($wikiFileText) {
 	return $match;
 }
 define("EARLIEST_TESTED_VERSION", 20600);
-define("LATEST_TESTED_VERSION", 20903);
+define("LATEST_TESTED_VERSION", 20904);
 function isSupportedTwVersion($versionParts) {
 
 	if(!$versionParts)
@@ -742,24 +752,14 @@ function isTwInWorkingFolder($file_name_in_current_workingFolder) {
 		return false;
 	return true;
 }
-function getListOfHtmls($folder) {
-
-	$htmls = [];
-	$filesAndFolders = scandir($folder);
-	foreach ($filesAndFolders as $name) {
-		$fullPath = $folder . "/" . $name;
-		if(is_file($fullPath) && hasHtmlExtension($fullPath))
-			$htmls[] = $name;
-	}
-	return $htmls;
-};
 function getListOfTwLikeHtmls($folder) {
 
 	$twLikeHtmls = [];
-	$htmls = getListOfHtmls($folder);
-	foreach ($htmls as $name) {
+	if(!is_dir($folder)) return null;
+	$filesAndFolders = scandir($folder);
+	foreach ($filesAndFolders as $name) {
 		$fullPath = $folder . "/" . $name;
-		if(isTwLike($fullPath))
+		if(is_file($fullPath) && hasHtmlExtension($fullPath) && isTwLike($fullPath))
 			$twLikeHtmls[] = $name;
 	}
 	return $twLikeHtmls;
@@ -811,8 +811,11 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 					}
 				}
 
-				input, select, textarea { font-family: inherit; font-size: inherit; padding-left: 0.2em; }
-				select { background: inherit; color: inherit; }
+				input, textarea, select {
+					background: inherit;
+					color: inherit;
+					border: thin solid black;
+				}
 				option { background: var(--color-background); }
 				/* the hover and selected ones are more complecated, see https://stackoverflow.com/q/10484053/3995261 and https://stackoverflow.com/q/8619406/3995261 */
 				input[type="text"] {  } /* keep disabled in mind */
@@ -879,11 +882,15 @@ function showOptionsPage() {
 		.options-form__password-panel { padding: 0 1em; }
 		.no-password-warning { color: red; }
 		.memory-limit-input { width: 6em; }
+		button {
+			cursor: pointer;
+			padding: 0.3em 0.6em;
+		}
 	</style>
 	<script type="text/javascript">
-		function enablePasswordSetting(isEnabled) {
-			document.getElementById("un").disabled = !isEnabled;
-			document.getElementById("pw").disabled = !isEnabled;
+		function togglePasswordSetting(isEnabled) {
+			const passInputsArea = document.getElementsByClassName("options-form__password-inputs")[0];
+			passInputsArea.style.display = isEnabled ? "" : "none";
 		}
 	</script>';
 	
@@ -904,35 +911,48 @@ function showOptionsPage() {
 	
 	// wiki
 	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
-	$output .= '<p>Use this wiki file: <select name="wikiname">';
-	foreach ($files as $fileName) {
-	
-		// avoid showing backups (legacy of MicroTiddlyServer)
-		if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
-			continue;
-		$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
+	if(is_null($files)) {
+		$output .= '<p><i>The chosen working folder is currently unavailable</i></p>';
+	} else {
+		$output .= '<p>Use this wiki file: <select name="wikiname">';
+		foreach ($files as $fileName) {
+		
+			// avoid showing backups (legacy of MicroTiddlyServer)
+			if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
+				continue;
+			$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
+		}
+		$output .= '</select></p>';	
 	}
-	$output .= '</select></p>';
 	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
 				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
 	
 	// login/password
-	$output .= '<div class="options-form__password-panel">' .
-	     '<p><label><input type="checkbox" name="setpassword" onclick="enablePasswordSetting(this.checked)">Change or set a password</label></p>';
-	if (!file_exists('.htaccess'))
-		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file. If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
-	$output .=   '<p><i>Use only letters (lower- and uppercase) and numbers</i></p>' .
-	       '<table><tbody>'.
-	         '<tr><td><label for="un">Username:</label></td> <td><input type="text" name="un" id="un" disabled="disabled"></td></tr>' .
-	         '<tr><td><label for="pw">Password:</label></td> <td><input type="text" name="pw" id="pw" disabled="disabled"></td></tr>' .
-	       '</table></tbody>'.
-	     '</div>';
+	$output .=
+	'<div class="options-form__password-panel">' .
+	  '<p><label><input type="checkbox" name="setpassword" onclick="togglePasswordSetting(this.checked)">Change or set a password</label></p>';
+	// gives false negatives (.htaccess may be without pass)
+	$noPassSet = !file_exists('.htaccess');
+	if($noPassSet) {
+		$output .= '<p class="no-password-warning">You currently do not have a password protecting your wiki file.' .
+			' If somebody guesses its path, they could modify it to include malicious javascript that steals your cookies ' .
+			'and potentially leads to further hacking on your entire web site. Please set a password below.</p>';
+	}
+	$output .=
+	  '<div class="options-form__password-inputs" style="display: none;">' .
+	    '<p><i>Use only letters (lower- and uppercase) and numbers</i></p>' .
+	    '<table><tbody>' .
+	      '<tr><td><label for="un">Username:</label></td> <td><input type="text" name="un" id="un"></td></tr>' .
+	      '<tr><td><label for="pw">Password:</label></td> <td><input type="text" name="pw" id="pw"></td></tr>' .
+	    '</table></tbody>' .
+	  '</div>'.
+	'</div>';
 	
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
-		" (increase if your TW is large and saving doesn't work, try values like 6 * size of your TW;" .
-		" leave blank to restore default value)</p>";
+		" (increase if your TW is large and saving doesn't work, try values like 6 *  the size of your TW;" .
+		" leave blank to restore the default value)</p>";
 
 	$output .= '<p><button type="submit">Save</button></p>';
 	$output .= '</form>';
@@ -949,6 +969,8 @@ function showWikisList() {
 			.wikis-list__title { margin: 1.4em 0 0; }
 			.wikis-list__list { text-align: left; display: inline-block; padding-left: 0; }
 			.wikis-list__item { padding: 0.3em 0.5em; list-style: none; border-radius: 5px; }
+
+			.hint { opacity: 0.4; text-align: center; }
 			.keyboard-only { display: none; }
 			/* rough detection of non-touch device */
 			@media screen and (min-width: 700px) {
@@ -960,15 +982,23 @@ function showWikisList() {
 				.wikis-list__item { padding-top: 0.25em; padding-bottom: 0.25em; }
 			}
 		</style>' . //# refine the min-device-width value (ps,ph)
-	'<div class="wikis-list">'.
+	'<div class="wikis-list">';
+
+	$htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
+	if(is_null($htmls)) {
+		$output .= '<p class="wikis-list__title">The chosen working folder is not available</p>' . '</div>';
+		showMtsPage($output, "Wikis: working folder unavailable");
+		return;
+	}
+
+	$output .=
 	 '<p class="wikis-list__title">Available TiddlyWikis:</p>' .
 	 '<ul class="wikis-list__list">';
-	 $htmls = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	 foreach ($htmls as $name)
 		$output .= '<li class="wikis-list__item"><a href="' . getFullWikiLink($name) . "\">$name</a></li>\n";
 	 $output .= '</ul>' .
 	'</div>'.
-	"<p class='keyboard-only'>You can use keyboard to select a wiki (&uarr;/&darr;/home/end) and to open it (enter).</p>" .
+	"<p class='keyboard-only hint'>You can use keyboard to select a wiki (&uarr;/&darr;/home/end) and to open it (enter).</p>" .
 	'<script>;
 	var items = document.getElementsByTagName("li"), selected,
 	    select = function(index) {
@@ -1577,6 +1607,7 @@ else if (isset($_REQUEST['proxy_to']))
 	 //# better to use some tested methods (http_build_url from PECL>=0.21.0?) – may be copy implementation
 	
 	// pass the rest, get response, send back
+	$proxy_debug_file = 'proxy_debug_info.txt';
 	if($doProxy) {
 		$curl_session = curl_init($requestedUrl);
 		// return results by curl_exec to $proxiedRequestResponse instead of printing
@@ -1585,16 +1616,20 @@ else if (isset($_REQUEST['proxy_to']))
 		//# ...
 		//# learn CURLOPT_FOLLOWLOCATION; use CURLOPT_HEADER when needed
 		$proxiedRequestResponse = curl_exec($curl_session);
-		if($proxiedRequestResponse === false) {
+		$failedToLoad = $proxiedRequestResponse === false;
+		if($failedToLoad) {
 			$request_error = curl_error($curl_session);
-			//# deal with errors, use $request_error
+			http_response_code(500);
+			$debug_mode = true;
 		}
 		// may also use curl_getinfo for additional info like times of different ~stages, sizes of different ~parts and others
 		curl_close($curl_session);
 
 		// respond back to TW
 		//# set headers
-		print $proxiedRequestResponse; // response body
+		// response body
+		print !$failedToLoad ? $proxiedRequestResponse :
+			"MTS proxy failed to get requested data, details can be found in $proxy_debug_file";
 	}
 	
 	// print debug info
@@ -1628,7 +1663,7 @@ else if (isset($_REQUEST['proxy_to']))
 		$test_message .= "\n\n" . 'request error: ' . $request_error . "\n";
 		$test_message .= "response:\n\n" . $proxiedRequestResponse . "\n";
 		//$test_message .= '$_SERVER: ' . print_r($_SERVER,true);
-		file_put_contents('test_proxy.txt', $test_message);
+		file_put_contents($proxy_debug_file, $test_message);
 	}
 }
 else if (isset($_GET['wikis'])) {
