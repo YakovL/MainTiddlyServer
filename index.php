@@ -116,6 +116,10 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
+	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
+	+ made injected js work correctly even when similar bits are inside storeArea
+	+ several UI improvements
 	1.7.1
 	+ introduced color theme and dark mode support (follows OS mode) to both MTS and docs pages
 	1.7.0
