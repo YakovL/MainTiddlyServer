@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.1';
+$version = '1.7.2';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
