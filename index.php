@@ -248,11 +248,6 @@ function getCurrentTwRequestPart() {
 	return twQueryParts.join("&");
 	//# or just return the whole window.location.search ?
 }
-function confirmMainSaved() {
-	// like in saveMain
-	displayMessage(config.messages.mainSaved);
-	store.setDirty(false);
-};
 function getOriginalUrl() {
 	// use document.location.host so that custom ports are supported
 	return document.location.protocol + "//" + document.location.host + document.location.pathname;
@@ -381,7 +376,7 @@ function setupGranulatedSaving() {
 			method: "POST",
 			onSuccess: function(responseText) {
 				if(responseText == "saved")
-					confirmMainSaved();
+					tw.io.onSaveMainSuccess();
 				else
 					displayMessage("Error while saving. Server:\n" + responseText);
 			},
@@ -453,6 +448,16 @@ window.tiddlyBackend = {
 		this.isInitialized = true;
 
 		config.options.chkHttpReadOnly = false;
+
+		// before TW 2.9.4
+		if(!window.tw) window.tw = {
+			io: {
+				onSaveMainSuccess: function() {
+					displayMessage(config.messages.mainSaved);
+					store.setDirty(false);
+				}
+			}
+		};
 
 		implementRequestProxying();
 
@@ -564,7 +569,7 @@ window.tiddlyBackend = {
 
 	// "public" methods
 	saveTwSnapshot: function() {
-		this.loadOriginal(original => this.updateAndSendMain(original, confirmMainSaved));
+		this.loadOriginal(original => this.updateAndSendMain(original, tw.io.onSaveMainSuccess));
 	}
 }
 
