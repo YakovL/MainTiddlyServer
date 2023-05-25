@@ -116,6 +116,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ fixed backstage save button
 	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
 	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
 	+ made injected js work correctly even when similar bits are inside storeArea
@@ -473,6 +474,8 @@ window.tiddlyBackend = {
 			if(onlyIfDirty && !store.isDirty()) return;
 			return saveOnlineChanges();
 		};
+		// update backstage saving as well
+		config.tasks.save.action = saveChanges;
 
 		// decorate copyFile to make it work for backuping on upgrading (sync, returns boolean indicating whether succeeded)
 		var nonBackuping_copyFile = window.copyFile;
