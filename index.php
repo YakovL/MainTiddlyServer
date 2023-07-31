@@ -118,6 +118,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	changes from the original version:
 	+ fixed backstage save button
 	+ added permission fix recipe to the error message
+	+ added fix suggestion to the error message when DOMDocument is not available
 	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
 	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
 	+ made injected js work correctly even when similar bits are inside storeArea
@@ -1156,9 +1157,12 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	preg_match_all($re_stored_tiddler, $storePart, $tiddlersArray); //# can we use explode instead?
 	unset($storePart); // no longer needed, spare memory
 	// turn $tiddlersArray[0] into a map by tiddler title (extract title from title attribute)
+	if(!class_exists('DOMDocument')) {
+		echo "Server doesn't support DOMDocument. Please install dom or xml module (see also https://stackoverflow.com/q/14395239/3995261)";
+		exit;
+	}
 	foreach($tiddlersArray[0] as $tiddlerText) {
 		// get tiddler title (create DOM element and extract the title attribute)
-//# return error msg if DOMDocument is not available (php-xml module required), try extension_loaded('xml')
 		$doc = new DOMDocument(); $doc->LoadHTML('<html><body>'.$tiddlerText.'</body></html>');
 		$tempElement = $doc->getElementsByTagName('div')->item(0);
 		// fix encoding (see https://stackoverflow.com/q/8218230/ , utf-8/ISO-8859-1, http://php.net/manual/en/class.domdocument.php)
