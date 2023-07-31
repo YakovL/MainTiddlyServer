@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.2';
+$version = '1.7.3';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.3
 	+ fixed backstage save button
 	+ added permission fix recipe to the error message
 	+ added fix suggestion to the error message when DOMDocument is not available
