@@ -117,6 +117,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
 	+ fixed backstage save button
+	+ added permission fix recipe to the error message
 	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
 	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
 	+ made injected js work correctly even when similar bits are inside storeArea
@@ -1238,7 +1239,9 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	if(!$saved)
 		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
+			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
+			"Usually a proper way to fix this is to open the folder in bash, ".
+			"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
 	return 0;
 }
 function getImageFromBase64AndSave($data, $path, $name)
