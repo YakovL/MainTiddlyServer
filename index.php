@@ -5,7 +5,7 @@ $version = '1.7.2';
 $debug_mode = false;
 
 // "no cache" headers to always get up-to-date TW content (not loaded from cache)
-// especially important on Adroid, since aggressive task killer unloads browsers from RAM quite often
+// especially important on Android, since aggressive task killer unloads browsers from RAM quite often
 // important: avoid BOM in this script: that causes warnings instead of setting headers
 header("Cache-Control: no-cache, no-store, must-revalidate"); // HTTP 1.1
 header("Pragma: no-cache"); // HTTP 1.0
@@ -607,7 +607,12 @@ function lock_and_read_file($path) {
 	return $content;
 }
 function lock_and_write_file($path, $content) {
-	return file_put_contents($path, $content, LOCK_EX);
+	$saved = file_put_contents($path, $content, LOCK_EX);
+	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
+		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
+		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
+		"Usually a proper way to fix this is to open the folder in bash, ".
+		"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
 }
 
 define("DEFAULT_DATAFOLDER_NAME", "main");
@@ -1239,14 +1244,8 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	}
 
 	// save changed wiki
-	$saved = lock_and_write_file($wikiPath, $wikiText);
-	if(!$saved)
-		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
-			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
-			"Usually a proper way to fix this is to open the folder in bash, ".
-			"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
-	return 0;
+	$error = lock_and_write_file($wikiPath, $wikiText);
+	return $error ? $error : 0;
 }
 function getImageFromBase64AndSave($data, $path, $name)
 {
@@ -1345,11 +1344,8 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 	if(isset($_POST['save'])) {
 		$content = removeInjectedJsFromWiki($_POST['content']);
 //# .oO can removeInjectedJsFromWiki fail?
-		$saved = lock_and_write_file($wikiPath, $content);
-		echo $saved ? 'saved' :
-			"MainTiddlyServer failed to save updated TiddlyWiki.\n".
-			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
+		$error = lock_and_write_file($wikiPath, $content);
+		echo $error ? $error : 'saved';
 	} else { // incremental saving from the saveChanges request
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
@@ -1417,12 +1413,12 @@ else if(isset($_POST['options']))
 	setOption('wikiname');
 
 	setOption('single_wiki_mode', true);
-	
+
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
 		Options::set('memory_limit', '', true);
-	
-	$saved = Options::save();
+
+	$error = Options::save();
 	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
 
 	if(isset($_POST['setpassword'])) {
