@@ -1,11 +1,11 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.2';
+$version = '1.7.3';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
 // "no cache" headers to always get up-to-date TW content (not loaded from cache)
-// especially important on Adroid, since aggressive task killer unloads browsers from RAM quite often
+// especially important on Android, since aggressive task killer unloads browsers from RAM quite often
 // important: avoid BOM in this script: that causes warnings instead of setting headers
 header("Cache-Control: no-cache, no-store, must-revalidate"); // HTTP 1.1
 header("Pragma: no-cache"); // HTTP 1.0
@@ -116,6 +116,10 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.3
+	+ fixed backstage save button
+	+ added permission fix recipe to the error message
+	+ added fix suggestion to the error message when DOMDocument is not available
 	1.7.2 see https://github.com/YakovL/MainTiddlyServer/pull/5
 	+ added support of TW 2.9.4, forward-compatibility for tw.io.onSaveMainSuccess
 	+ made injected js work correctly even when similar bits are inside storeArea
@@ -473,6 +477,8 @@ window.tiddlyBackend = {
 			if(onlyIfDirty && !store.isDirty()) return;
 			return saveOnlineChanges();
 		};
+		// update backstage saving as well
+		config.tasks.save.action = saveChanges;
 
 		// decorate copyFile to make it work for backuping on upgrading (sync, returns boolean indicating whether succeeded)
 		var nonBackuping_copyFile = window.copyFile;
@@ -602,7 +608,12 @@ function lock_and_read_file($path) {
 	return $content;
 }
 function lock_and_write_file($path, $content) {
-	return file_put_contents($path, $content, LOCK_EX);
+	$saved = file_put_contents($path, $content, LOCK_EX);
+	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
+		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
+		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
+		"Usually a proper way to fix this is to open the folder in bash, ".
+		"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
 }
 
 define("DEFAULT_DATAFOLDER_NAME", "main");
@@ -702,7 +713,7 @@ function isSupportedTwVersion($versionParts) {
 	if(!$versionParts)
 		return false;
 	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
-	if ($version < EARLIEST_TESTED_VERSION or $version > LATEST_TESTED_VERSION)
+	if($version < EARLIEST_TESTED_VERSION or $version > LATEST_TESTED_VERSION)
 		return false;
 	return true;
 }
@@ -711,7 +722,7 @@ function isNewerUntestedTwVersion($versionParts) {
 	if(!$versionParts)
 		return false;
 	$version = intval($versionParts[1]) * 10000 + intval($versionParts[2]) * 100 + intval($versionParts[3]);
-	if ($version > LATEST_TESTED_VERSION)
+	if($version > LATEST_TESTED_VERSION)
 		return true;
 	return false;
 }
@@ -918,7 +929,7 @@ function showOptionsPage() {
 		foreach ($files as $fileName) {
 		
 			// avoid showing backups (legacy of MicroTiddlyServer)
-			if (preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
+			if(preg_match("/[0-9]{6}\.[0-9]{10}/", $fileName))
 				continue;
 			$output .= "<option value=\"$fileName\"" . ($fileName == Options::get('wikiname') ? " selected" : "") . ">$fileName</option>\n";
 		}
@@ -1047,9 +1058,9 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 //  die(); // for those who bypass the header, see http://thedailywtf.com/Articles/WellIntentioned-Destruction.aspx
 	
 	// if there's no such file, show that
-	if (!file_exists($wikiPath) || !is_file($wikiPath)) {
-	
-		if (!$wikiName || !$workingFolder) //# check is_dir as well?
+	if(!file_exists($wikiPath) || !is_file($wikiPath)) {
+
+		if(!$wikiName || !$workingFolder) //# check is_dir as well?
 			return showOptionsPage();
 
 		showMtsPage("<p>\"$pathToShowOnError\" does not exist or is not a file in the working folder.</p>" .
@@ -1060,7 +1071,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 	
 	// if the version isn't supported, show that
 	$versionParts = getTwVersion($wikiData);
-	if (!isSupportedTwVersion($versionParts)) {
+	if(!isSupportedTwVersion($versionParts)) {
 
 		$versionString = $versionParts ? ('the version "'. $versionParts[1] .".". $versionParts[2] .".". $versionParts[3] .'"')
 			: 'an unknown version';
@@ -1152,9 +1163,12 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	preg_match_all($re_stored_tiddler, $storePart, $tiddlersArray); //# can we use explode instead?
 	unset($storePart); // no longer needed, spare memory
 	// turn $tiddlersArray[0] into a map by tiddler title (extract title from title attribute)
+	if(!class_exists('DOMDocument')) {
+		echo "Server doesn't support DOMDocument. Please install dom or xml module (see also https://stackoverflow.com/q/14395239/3995261)";
+		exit;
+	}
 	foreach($tiddlersArray[0] as $tiddlerText) {
 		// get tiddler title (create DOM element and extract the title attribute)
-//# return error msg if DOMDocument is not available (php-xml module required), try extension_loaded('xml')
 		$doc = new DOMDocument(); $doc->LoadHTML('<html><body>'.$tiddlerText.'</body></html>');
 		$tempElement = $doc->getElementsByTagName('div')->item(0);
 		// fix encoding (see https://stackoverflow.com/q/8218230/ , utf-8/ISO-8859-1, http://php.net/manual/en/class.domdocument.php)
@@ -1231,12 +1245,8 @@ function updateTW($wikiPath, $changes) { // TW-format-gnostic
 	}
 
 	// save changed wiki
-	$saved = lock_and_write_file($wikiPath, $wikiText);
-	if(!$saved)
-		return  "MainTiddlyServer failed to save updated TiddlyWiki.\n".
-			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
-	return 0;
+	$error = lock_and_write_file($wikiPath, $wikiText);
+	return $error ? $error : 0;
 }
 function getImageFromBase64AndSave($data, $path, $name)
 {
@@ -1269,9 +1279,9 @@ function getImageByUriAndSave($url, $path, $name)
 	// check if $url is base64 or not
 	preg_match("/^data\:/", $url, $isBase64);
 	// make sure $path exists (create the folder if needed)
-	if (!file_exists($path))
+	if(!file_exists($path))
 		mkdir($path, 0777, true);
-//	if (!file_exists($path))
+//	if(!file_exists($path))
 //		return ..;
 //# if name is not given, create a random one (may be use timestamp)
 	if($isBase64)
@@ -1317,7 +1327,7 @@ function getFullWikiLink($nameOrPath) {
 }
 
 // If this is an AJAX request to save the file, do so, for incremental changes respond 'saved' on success and error on fail
-if (isset($_POST['save']) || isset($_POST['saveChanges']))
+if(isset($_POST['save']) || isset($_POST['saveChanges']))
 {
 	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
 	if(!isTwInWorkingFolder($nameOfTwToUpdate)) {
@@ -1335,11 +1345,8 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 	if(isset($_POST['save'])) {
 		$content = removeInjectedJsFromWiki($_POST['content']);
 //# .oO can removeInjectedJsFromWiki fail?
-		$saved = lock_and_write_file($wikiPath, $content);
-		echo $saved ? 'saved' :
-			"MainTiddlyServer failed to save updated TiddlyWiki.\n".
-			"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-			"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.";
+		$error = lock_and_write_file($wikiPath, $content);
+		echo $error ? $error : 'saved';
 	} else { // incremental saving from the saveChanges request
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
@@ -1349,7 +1356,7 @@ if (isset($_POST['save']) || isset($_POST['saveChanges']))
 	}
 }
 // For a backup request, respond with 'success' or a string explaining the problem
-else if (isset($_POST['backupByName']))
+else if(isset($_POST['backupByName']))
 {
 	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
 	if(!isTwInWorkingFolder($twToBackupFileName)) {
@@ -1388,7 +1395,7 @@ else if (isset($_POST['backupByName']))
 	// unsure if we can in fact end up here with falsy $success
 	echo $success ? 'success' : 'creating backup failed';
 }
-else if (isset($_POST['options']))
+else if(isset($_POST['options']))
 {
 	function setOption($name, $unsetEmpty = false) {
 		Options::set($name, $_POST[$name], $unsetEmpty);
@@ -1397,8 +1404,8 @@ else if (isset($_POST['options']))
 	// $_REQUEST['folder'] is processed "globally" (see above)
 
 	// Make sure the selected wiki file is really in our directory; set it
-	if (!isInWokringFolder($_POST['wikiname']))
-	//if (strpos(realpath($_POST['wikiname']), getcwd()) === FALSE)
+	if(!isInWokringFolder($_POST['wikiname']))
+	//if(strpos(realpath($_POST['wikiname']), getcwd()) === FALSE)
 	{
 		// security: don't show real path, just the passed "wikiname"
 		showMtsPage('<p>' . $_POST['wikiname'] . ' is not in the working directory</p>');
@@ -1407,20 +1414,20 @@ else if (isset($_POST['options']))
 	setOption('wikiname');
 
 	setOption('single_wiki_mode', true);
-	
+
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
 		Options::set('memory_limit', '', true);
-	
-	$saved = Options::save();
+
+	$error = Options::save();
 	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
 
-	if (isset($_POST['setpassword']))
-	{
+	if(isset($_POST['setpassword'])) {
+
 		$userName = preg_replace("/[^\w]/", "", $_POST['un']);
 		$passWord = preg_replace("/[^\w]/", "", $_POST['pw']);
-		if ($userName != $_POST['un'] || $passWord != $_POST['pw'] || strlen($userName) < 1 || strlen($passWord) < 1) {
-		
+		if($userName != $_POST['un'] || $passWord != $_POST['pw'] || strlen($userName) < 1 || strlen($passWord) < 1) {
+
 			$output .= 'The username or password contained illegal characters<br>';
 			$output .= 'Use only letters (lower- and uppercase) and numbers<br>';
 		}
@@ -1454,16 +1461,16 @@ else if (isset($_POST['options']))
 	$output .= "<p>To start editing your TiddlyWiki now, go to <a href='$wikiLink'>$wikiLink</a></p>";
 	showMtsPage($output);
 }
-else if (isset($_GET['options'])) {
+else if(isset($_GET['options'])) {
 	showOptionsPage();
 }
-else if (isset($_REQUEST['proxy_to']))
+else if(isset($_REQUEST['proxy_to']))
 {
 //# test, test, test, including urls without protocol (with :?//), with custom port
  // what if we fail to open an html because it's too big? what behaviour we'll get?
 
 	// a helper to split full path into folder + file parts
-	function getFolderAndFileNameFromPath($urlFullPath){
+	function getFolderAndFileNameFromPath($urlFullPath) {
 		$folderAndFileRegExp = '#^(.*/)([^/]*)$#';
 		preg_match($folderAndFileRegExp,$urlFullPath,$match);
 		return array(
@@ -1555,13 +1562,13 @@ else if (isset($_REQUEST['proxy_to']))
 	 // start with "in the same[=working] folder"
 	//# get query with the proxy_to= part stripped (explode,~remove,implode)
 	if($isSameFolder) {
-		
+
 		//# to support cyrillics and may be other symbols in Win (filename; filepath below), see https://gist.github.com/YakovL/a5425e7f4e116aee87fb121a3ab0b26d (fixFilenameEncoding)
 		if(isTwInWorkingFolder($requestedFileDecodedName))
 			showTW($workingFolder . "/" . $requestedFileDecodedName);
 		//# grab and serve resources other than TWs? test pictures in included tiddlers
 	} else if($isSubfolder) {
-		
+
 		// replace $mtsFolderUrl in $requestedFolderResolved with one slash
 		$requestSubPath = substr_replace($requestedFolderResolved, '/', 0, strlen($mtsFolderUrl));
 		// realpath doesn't seem to be needed: mixed / and \ don't hurt
@@ -1666,12 +1673,11 @@ else if (isset($_REQUEST['proxy_to']))
 		file_put_contents($proxy_debug_file, $test_message);
 	}
 }
-else if (isset($_GET['wikis'])) {
-
+else if(isset($_GET['wikis'])) {
 	showWikisOrWiki();
 }
 // open a wiki by url in request
-else if (isset($_GET['wiki'])) {
+else if(isset($_GET['wiki'])) {
 
 	if(!is_dir($workingFolder)) {
 		showMtsPage("<p>The server working folder is currently unavailable...</p>", '', 404);
