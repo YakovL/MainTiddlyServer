@@ -748,13 +748,14 @@ function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
 		return false;
 	return true;
 }
-function isInWokringFolder($file_name_in_current_workingFolder) { // file or folder
+function isInWokringFolder($file_or_folder_name) {
 	
 	$workingFolder = Options::getWorkingFolder();
-	if(!is_dir($workingFolder)) // workingFolder may be unavailable
-		return false;
-	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
-	return in_array($file_name_in_current_workingFolder, $filesAndFolders);
+	// workingFolder may be unavailable
+	if(!is_dir($workingFolder)) return false;
+
+	$filesAndFoldersNames = scandir($workingFolder);
+	return in_array($file_or_folder_name, $filesAndFoldersNames);
 }
 function isTwLikeInCurrentWorkingFolder($file_name) {
 
