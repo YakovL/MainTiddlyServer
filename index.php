@@ -116,6 +116,7 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	+ support .htm, .hta files (treat the same as .html)
 	1.7.3
 	+ fixed backstage save button
 	+ added permission fix recipe to the error message
@@ -731,12 +732,14 @@ function hasSupportedTwVersion($wikiFileText) {
 	$versionParts = getTwVersion($wikiFileText);
 	return isSupportedTwVersion($versionParts);
 }
-function hasHtmlExtension($nameOrPath) {
-	return substr_compare($nameOrPath, ".html", -5, 5) == 0;
+function hasHtmlLikeExtension($nameOrPath) {
+	return substr_compare($nameOrPath, ".html", -5, 5) == 0
+	  or substr_compare($nameOrPath, ".htm", -4, 4) == 0
+	  or substr_compare($nameOrPath, ".hta", -4, 4) == 0;
 }
 function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
-	
-	if(!hasHtmlExtension($file_full_path_and_name))
+
+	if(!hasHtmlLikeExtension($file_full_path_and_name))
 		return false;
 	if(!is_file($file_full_path_and_name))
 		return false;
@@ -770,7 +773,7 @@ function getListOfTwLikeHtmls($folder) {
 	$filesAndFolders = scandir($folder);
 	foreach ($filesAndFolders as $name) {
 		$fullPath = $folder . "/" . $name;
-		if(is_file($fullPath) && hasHtmlExtension($fullPath) && isTwLike($fullPath))
+		if(is_file($fullPath) && hasHtmlLikeExtension($fullPath) && isTwLike($fullPath))
 			$twLikeHtmls[] = $name;
 	}
 	return $twLikeHtmls;
