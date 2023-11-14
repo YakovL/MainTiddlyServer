@@ -756,15 +756,11 @@ function isInWokringFolder($file_name_in_current_workingFolder) { // file or fol
 	$filesAndFolders = scandir($workingFolder); // files' and folders' names in current directory
 	return in_array($file_name_in_current_workingFolder, $filesAndFolders);
 }
-// checks whether it's a tw-like html from the current working folder
-function isTwInWorkingFolder($file_name_in_current_workingFolder) {
+function isTwLikeInCurrentWorkingFolder($file_name) {
 
-	if(!isInWokringFolder($file_name_in_current_workingFolder))
-		return false;
-	$fullPath = Options::getWorkingFolder() . "/" . $file_name_in_current_workingFolder;
-	if(!isTwLike($fullPath))
-		return false;
-	return true;
+	if(!isInWokringFolder($file_name)) return false;
+	$fullPath = Options::getWorkingFolder() . "/" . $file_name;
+	return isTwLike($fullPath);
 }
 function getListOfTwLikeHtmls($folder) {
 
@@ -1333,7 +1329,7 @@ function getFullWikiLink($nameOrPath) {
 if(isset($_POST['save']) || isset($_POST['saveChanges']))
 {
 	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
-	if(!isTwInWorkingFolder($nameOfTwToUpdate)) {
+	if(!isTwLikeInCurrentWorkingFolder($nameOfTwToUpdate)) {
 		http_response_code(404);
 		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
 		return;
@@ -1362,7 +1358,7 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 else if(isset($_POST['backupByName']))
 {
 	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
-	if(!isTwInWorkingFolder($twToBackupFileName)) {
+	if(!isTwLikeInCurrentWorkingFolder($twToBackupFileName)) {
 		http_response_code(404);
 		exit("error: \"$twToBackupFileName\" is not a valid TiddlyWiki in the working folder");
 	}
@@ -1567,7 +1563,7 @@ else if(isset($_REQUEST['proxy_to']))
 	if($isSameFolder) {
 
 		//# to support cyrillics and may be other symbols in Win (filename; filepath below), see https://gist.github.com/YakovL/a5425e7f4e116aee87fb121a3ab0b26d (fixFilenameEncoding)
-		if(isTwInWorkingFolder($requestedFileDecodedName))
+		if(isTwLikeInCurrentWorkingFolder($requestedFileDecodedName))
 			showTW($workingFolder . "/" . $requestedFileDecodedName);
 		//# grab and serve resources other than TWs? test pictures in included tiddlers
 	} else if($isSubfolder) {
