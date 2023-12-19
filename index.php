@@ -211,7 +211,8 @@ You will then be asked to perform some initial configuration, after which you ca
 	+ set dirty: false on saving response, not when sending request
 */
 
-$injectedJsHelpers = 'function isGranulatedSavingSupported() { // TW v2.8.0 and above where recreateOriginal is finished and used
+$injectedJsHelpers = '// TW v2.8.0 and above where recreateOriginal is finished and used
+function isGranulatedSavingSupported() {
 
 	return version.major > 2 || (version.major == 2 && version.minor >= 8);
 }
@@ -737,7 +738,8 @@ function hasHtmlLikeExtension($nameOrPath) {
 	  or substr_compare($nameOrPath, ".htm", -4, 4) == 0
 	  or substr_compare($nameOrPath, ".hta", -4, 4) == 0;
 }
-function isTwLike($file_full_path_and_name) { // doesn't allow PureStore for now
+// doesn't support PureStore yet
+function isTwLike($file_full_path_and_name) {
 
 	if(!hasHtmlLikeExtension($file_full_path_and_name))
 		return false;
@@ -1120,8 +1122,9 @@ function showWikisOrWiki() {
 function showDocPage() {
 	
 }
-// reads TW, applies changes, saves back; returns 0 on success and error text otherwise (not quite: see //#)
-function updateTW($wikiPath, $changes) { // TW-format-gnostic
+// reads TW, applies changes, saves back (TW-format-gnostic)
+// returns 0 on success and error text otherwise (not quite: see //#)
+function updateTW($wikiPath, $changes) {
 
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
@@ -1347,7 +1350,8 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 //# .oO can removeInjectedJsFromWiki fail?
 		$error = lock_and_write_file($wikiPath, $content);
 		echo $error ? $error : 'saved';
-	} else { // incremental saving from the saveChanges request
+	} else {
+		// incremental saving from the saveChanges request
 		$changesJSON = $_POST['saveChanges'];
 		$changes = json_decode($changesJSON);
 		$errors = updateTW($wikiPath, $changes);
