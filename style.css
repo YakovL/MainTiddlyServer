@@ -109,6 +109,10 @@ main a { color: inherit; opacity: 0.5; }
 	padding-bottom: 1em;
 }
 
+footer a {
+    color: inherit;
+}
+
 ::selection {
 	background: #b7b69f;
 }
