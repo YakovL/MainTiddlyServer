@@ -890,9 +890,9 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 	echo '</div></body></html>';
 }
 function showOptionsPage() {
-	
+
 	global $optionsLink;
-	
+
 	$output = '<style>
 		.options-form__password-panel { padding: 0 1em; }
 		.no-password-warning { color: red; }
@@ -908,10 +908,15 @@ function showOptionsPage() {
 			passInputsArea.style.display = isEnabled ? "" : "none";
 		}
 	</script>';
-	
+
 	$output .= '<form class="options-form" name="input" action="' . $optionsLink . '" method="post">' .
 				 '<input type="hidden" name="options">';
-	
+
+	function getOptionCheckbox($optionName, $labelHtml) {
+		return '<label><input type="checkbox" name="' . $optionName . '" ' .
+		(Options::get($optionName) ? 'checked ' : '') . '>' . $labelHtml . '</label>';
+	}
+
 	// workingFolder: list Options::get('dataFolders')'s names, send to further save Options 'workingFolderName'
 	/*$folders = Options::get('dataFolders');
 	$selected = Options::get('workingFolderName');
@@ -923,7 +928,7 @@ function showOptionsPage() {
 	//# add description: what is this location, where and how to add new ones
 	//# process in $_POST['options']
 	//# this should cause updating of the wikis dropdown.. or the latter should be removed from ?options
-	
+
 	// wiki
 	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	if(is_null($files)) {
@@ -939,9 +944,9 @@ function showOptionsPage() {
 		}
 		$output .= '</select></p>';	
 	}
-	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
-				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
-	
+	$output .= '<p>' . getOptionCheckbox('single_wiki_mode',
+		'Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)') . '</p>';
+
 	// login/password
 	$output .=
 	'<div class="options-form__password-panel">' .
@@ -962,7 +967,7 @@ function showOptionsPage() {
 	    '</table></tbody>' .
 	  '</div>'.
 	'</div>';
-	
+
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
