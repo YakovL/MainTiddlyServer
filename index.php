@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.4';
+$version = '1.7.5';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.5
+	+ added support of TW 2.10.1 (not using new interfaces yet)
+	+ introduce skip_file_locking
 	1.7.4
 	+ added support of TW 2.10.0 (not using new interfaces yet)
 	+ support .htm, .hta files (treat the same as .html)
