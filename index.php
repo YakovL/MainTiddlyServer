@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.4';
+$version = '1.7.5';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.5
+	+ added support of TW 2.10.1 (not using new interfaces yet)
+	+ introduce skip_file_locking
 	1.7.4
 	+ added support of TW 2.10.0 (not using new interfaces yet)
 	+ support .htm, .hta files (treat the same as .html)
@@ -612,7 +615,9 @@ function lock_and_read_file($path) {
 	return $content;
 }
 function lock_and_write_file($path, $content) {
-	$saved = file_put_contents($path, $content, LOCK_EX);
+	$saved = Options::get('skip_file_locking') ?
+		file_put_contents($path, $content) :
+		file_put_contents($path, $content, LOCK_EX);
 	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
 		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
@@ -711,7 +716,7 @@ function getTwVersion($wikiFileText) {
 	return $match;
 }
 define("EARLIEST_TESTED_VERSION", 20600);
-define("LATEST_TESTED_VERSION", 21000);
+define("LATEST_TESTED_VERSION", 21001);
 function isSupportedTwVersion($versionParts) {
 
 	if(!$versionParts)
@@ -890,9 +895,9 @@ function showMtsPage($html, $title = '', $httpStatus = 200) {
 	echo '</div></body></html>';
 }
 function showOptionsPage() {
-	
+
 	global $optionsLink;
-	
+
 	$output = '<style>
 		.options-form__password-panel { padding: 0 1em; }
 		.no-password-warning { color: red; }
@@ -908,10 +913,15 @@ function showOptionsPage() {
 			passInputsArea.style.display = isEnabled ? "" : "none";
 		}
 	</script>';
-	
+
 	$output .= '<form class="options-form" name="input" action="' . $optionsLink . '" method="post">' .
 				 '<input type="hidden" name="options">';
-	
+
+	function getOptionCheckbox($optionName, $labelHtml) {
+		return '<label><input type="checkbox" name="' . $optionName . '" ' .
+		(Options::get($optionName) ? 'checked ' : '') . '>' . $labelHtml . '</label>';
+	}
+
 	// workingFolder: list Options::get('dataFolders')'s names, send to further save Options 'workingFolderName'
 	/*$folders = Options::get('dataFolders');
 	$selected = Options::get('workingFolderName');
@@ -923,7 +933,7 @@ function showOptionsPage() {
 	//# add description: what is this location, where and how to add new ones
 	//# process in $_POST['options']
 	//# this should cause updating of the wikis dropdown.. or the latter should be removed from ?options
-	
+
 	// wiki
 	$files = getListOfTwLikeHtmls(Options::getWorkingFolder());
 	if(is_null($files)) {
@@ -939,9 +949,9 @@ function showOptionsPage() {
 		}
 		$output .= '</select></p>';	
 	}
-	$output .= '<p><label><input type="checkbox" '.(Options::get('single_wiki_mode') ? 'checked=checked' : '').
-				'name="single_wiki_mode">Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)</label></p>';
-	
+	$output .= '<p>' . getOptionCheckbox('single_wiki_mode',
+		'Single wiki mode (redirect from wikis to wiki page, no ?wiki=.. in URL required)') . '</p>';
+
 	// login/password
 	$output .=
 	'<div class="options-form__password-panel">' .
@@ -962,12 +972,17 @@ function showOptionsPage() {
 	    '</table></tbody>' .
 	  '</div>'.
 	'</div>';
-	
+
 	// memory limit
 	$output .= "<p>PHP memory limit: <input type='text' name='memory_limit' value='" . Options::get('memory_limit') .
 		"' class='memory-limit-input'>" .
 		" (increase if your TW is large and saving doesn't work, try values like 6 *  the size of your TW;" .
 		" leave blank to restore the default value)</p>";
+
+	// file locking
+	$output .= '<p>' . getOptionCheckbox('skip_file_locking',
+		'Skip file locking (<a href="https://github.com/YakovL/MainTiddlyServer/issues/8">workaround</a> ' .
+		'for the "Exclusive locks are not supported" error)') . '</p>';
 
 	$output .= '<p><button type="submit">Save</button></p>';
 	$output .= '</form>';
@@ -1424,6 +1439,8 @@ else if(isset($_POST['options']))
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
 		Options::set('memory_limit', '', true);
+
+	setOption('skip_file_locking', true);
 
 	$error = Options::save();
 	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
