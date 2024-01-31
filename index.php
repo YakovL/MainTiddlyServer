@@ -713,7 +713,7 @@ function getTwVersion($wikiFileText) {
 	return $match;
 }
 define("EARLIEST_TESTED_VERSION", 20600);
-define("LATEST_TESTED_VERSION", 21000);
+define("LATEST_TESTED_VERSION", 21001);
 function isSupportedTwVersion($versionParts) {
 
 	if(!$versionParts)
