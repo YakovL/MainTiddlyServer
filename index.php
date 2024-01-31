@@ -612,7 +612,9 @@ function lock_and_read_file($path) {
 	return $content;
 }
 function lock_and_write_file($path, $content) {
-	$saved = file_put_contents($path, $content, LOCK_EX);
+	$saved = Options::get('skip_file_locking') ?
+		file_put_contents($path, $content) :
+		file_put_contents($path, $content, LOCK_EX);
 	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
 		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
 		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
@@ -973,6 +975,11 @@ function showOptionsPage() {
 		"' class='memory-limit-input'>" .
 		" (increase if your TW is large and saving doesn't work, try values like 6 *  the size of your TW;" .
 		" leave blank to restore the default value)</p>";
+
+	// file locking
+	$output .= '<p>' . getOptionCheckbox('skip_file_locking',
+		'Skip file locking (<a href="https://github.com/YakovL/MainTiddlyServer/issues/8">workaround</a> ' .
+		'for the "Exclusive locks are not supported" error)') . '</p>';
 
 	$output .= '<p><button type="submit">Save</button></p>';
 	$output .= '</form>';
@@ -1429,6 +1436,8 @@ else if(isset($_POST['options']))
 	setOption('memory_limit', true);
 	if($_POST['memory_limit'] == $system_memory_limit)
 		Options::set('memory_limit', '', true);
+
+	setOption('skip_file_locking', true);
 
 	$error = Options::save();
 	$output = '<p>Active wiki set to ' . Options::get('wikiname') . '</p>';
