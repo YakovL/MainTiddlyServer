@@ -696,19 +696,19 @@ function injectJsToWiki($wikiData) {
 
 	return $wikiData;
 }
-function removeInjectedJsFromWiki($content) {
+function removeInjectedJsFromWiki($wikiData) {
 
 	global $injectedJsHelpers;
 
 	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
 	//# try to use  substr_replace  instead (compare times, memory usage)
-	$start = strpos($content, $injectedJsHelpers, $endOfStoreArea);
+	$start = strpos($wikiData, $injectedJsHelpers, $endOfStoreArea);
 	if($start === false) {
-		return $content;
+		return $wikiData;
 	}
 	$end = $start + strlen($injectedJsHelpers);
-	return substr($content, 0, $start) . substr($content, $end);
+	return substr($wikiData, 0, $start) . substr($wikiData, $end);
 }
 function getTwVersion($wikiFileText) {
 
@@ -1087,7 +1087,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 		return false;
 	}
 	$wikiData = lock_and_read_file($wikiPath);
-	
+
 	// if the version isn't supported, show that
 	$versionParts = getTwVersion($wikiData);
 	if(!isSupportedTwVersion($versionParts)) {
@@ -1124,7 +1124,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 	}
 
 	$wikiData = injectJsToWiki($wikiData);
-	
+
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
 	print $wikiData;
 	return true;
