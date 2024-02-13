@@ -665,7 +665,7 @@ class Options {
 			self::$options[$optionName] = $value;
 	}
 	public static function chooseWorkingFolder($name) {
-		if(self::$options['dataFolders'][$name]) {
+		if(isset(self::$options['dataFolders'][$name])) {
 			self::set('workingFolderName', $name);
 		}
 		$workingFolderName = self::get('workingFolderName');
@@ -1143,6 +1143,8 @@ function showDocPage() {
 // returns 0 on success and error text otherwise (not quite: see //#)
 function updateTW($wikiPath, $changes) {
 
+	global $debug_mode;
+
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
 
@@ -1358,8 +1360,10 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 	$wikiPath = $workingFolder . "/" . $nameOfTwToUpdate;
 
 	// first, backup if required
-	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
-	if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
+	if(isset($_POST['backupid'])) {
+		$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
+		if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
+	}
 
 	// then save
 	if(isset($_POST['save'])) {
