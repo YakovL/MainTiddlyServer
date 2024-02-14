@@ -1211,11 +1211,11 @@ function updateTW($wikiPath, $changes) {
 	foreach($changes->tiddlers as $tiddlerTitle => $tiddlerChange) {
 		if($tiddlerChange == "deleted") {
 			unset($tiddlersMap[$tiddlerTitle]);
-		} else if($tiddlerChange->added) {
+		} else if(isset($tiddlerChange->added)) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->added;
-		} else if($tiddlerChange->changed) {
+		} else if(isset($tiddlerChange->changed)) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->changed; // substituting
-		} else if($tiddlerChange->renamed) {
+		} else if(isset($tiddlerChange->renamed)) {
 			//# can renaming cause conflicts? should we mark it separately from "changed"?
 			
 			// if implemented, will improve traffic usage and "gittability" (renamed tiddlers won't be shifted to the end)
@@ -1229,12 +1229,12 @@ function updateTW($wikiPath, $changes) {
 	unset($tiddlersMap); // no longer needed, spare memory
 
 	// update title if necessary
-	if($changes->title)
+	if(isset($changes->title))
 		$beforeStorePart = preg_replace('#<title>.*?</title>#s', '<title> '.$changes->title.' </title>', $beforeStorePart);
 	// we use <title> title </title> format (with extra spaces around) since it is used in TW; it doesn't seem to be important
 	
 	// update markup blocks
- 	if($changes->markupBlocks)
+ 	if(isset($changes->markupBlocks))
 		foreach($changes->markupBlocks as $blockName => $blockValue) {
 			$start = "<!--$blockName-START-->";
 			$end   = "<!--$blockName-END-->";
