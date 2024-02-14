@@ -654,14 +654,18 @@ class Options {
 	}
 	public static function get($optionName) {
 		//# if($optionName == 'dataFolders') ... return copy of options['dataFolders'] so that they cannot be changed
-		return self::$options[$optionName];
+		return isset(self::$options[$optionName]) ?
+			self::$options[$optionName] : null;
 	}
 	public static function set($optionName, $value, $unsetEmpty = false) {
 		if($optionName == 'dataFolders') return;
-		if($value != self::$options[$optionName])
+
+		$oldValue = self::get($optionName);
+		if($value != $oldValue && ($value || $oldValue))
 			self::$isChanged = true;
+
 		if(!$value && $unsetEmpty)
-			unset(self::$options[$optionName]); // https://stackoverflow.com/a/25748033/3995261
+			unset(self::$options[$optionName]);
 		else
 			self::$options[$optionName] = $value;
 	}
@@ -1425,7 +1429,8 @@ else if(isset($_POST['backupByName']))
 else if(isset($_POST['options']))
 {
 	function setOption($name, $unsetEmpty = false) {
-		Options::set($name, $_POST[$name], $unsetEmpty);
+		$value = isset($_POST[$name]) ? $_POST[$name] : null;
+		Options::set($name, $value, $unsetEmpty);
 	}
 
 	// $_REQUEST['folder'] is processed "globally" (see above)
