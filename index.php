@@ -1306,9 +1306,10 @@ function getImageByUriAndSave($url, $path, $name)
 //	if(!file_exists($path))
 //		return ..;
 //# if name is not given, create a random one (may be use timestamp)
-	if($isBase64)
-		getImageFromBase64AndSave($data, $path.'/', $name);
-	else
+	if($isBase64) {
+		// TODO: $data = calc from $url
+		// getImageFromBase64AndSave($data, $path.'/', $name);
+	} else
 		loadImageByUrlAndSave($url, $path.'/', $name);
 //# return path to created image on success
 };
