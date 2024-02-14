@@ -630,6 +630,7 @@ define("DEFAULT_DATAFOLDER_PATH", ".");
 class Options {
 	protected static $optionsFolder;
 	protected static $options;
+	// used to avoid redundant saving
 	protected static $isChanged;
 	public static function init($optionsFolder) {
 		if(self::$optionsFolder !== null) return;
@@ -678,7 +679,7 @@ class Options {
 	}
 	public static function save() {
 		if(!self::$isChanged) return;
-		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
+		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/q/22208831/3995261)
 		$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
 		$path = self::$optionsFolder . "/" . "mts_options.json";
 		return lock_and_write_file($path, json_encode(self::$options, $pretty_print));
