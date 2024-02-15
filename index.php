@@ -643,13 +643,15 @@ class Options {
 		$newPath = self::$optionsFolder . "/" . "mts_options.json";
 		$path = file_exists($newPath) ? $newPath : $oldPath;
 
-		$optionsText = lock_and_read_file($path);
-		self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
+		if(file_exists($path)) {
+			$optionsText = lock_and_read_file($path);
+			self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
+		}
 
 		// normalize
-		if(!self::$options['dataFolders'])
+		if(!isset(self::$options['dataFolders']))
 			self::$options['dataFolders'] = [];
-		if(!self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME])
+		if(!isset(self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME]))
 			self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH;
 	}
 	public static function get($optionName) {
