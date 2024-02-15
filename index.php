@@ -675,9 +675,10 @@ class Options {
 		if(isset(self::$options['dataFolders'][$name])) {
 			self::set('workingFolderName', $name);
 		}
-		$workingFolderName = self::get('workingFolderName');
-		if(!$workingFolderName or !array_key_exists($workingFolderName, self::$options['dataFolders']))
+
+		if(!self::get('workingFolderName') or !self::get('dataFolders'))
 			self::set('workingFolderName', DEFAULT_DATAFOLDER_NAME);
+
 		return self::get('workingFolderName');
 	}
 	public static function getWorkingFolder() {
