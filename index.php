@@ -1578,7 +1578,7 @@ else if(isset($_REQUEST['proxy_to']))
 	  relative url			  =		  =						 ...
 	  same folder			  =		  =						  =
 	*/
-	$portInRequested = $requestedUrlParts['port'];
+	$portInRequested = isset($requestedUrlParts['port']) ? $requestedUrlParts['port'] : null;
 	$isSameDomain = ($requestedUrlParts['host'] == $mtsHost) && (!$portInRequested || ($portInRequested == $mtsPort));
 	$isSameFolder = $isSameDomain && ($requestedFolder == $mtsFolderUrl); //# test (can trailing / be omitted?)
 	$isRelativePath = strpos($requestedFolder, $mtsFolderUrl) === 0;
@@ -1644,8 +1644,9 @@ else if(isset($_REQUEST['proxy_to']))
 		$initialRequestedUrl = $requestedUrl;
 	}
 	$requestedUrl = $requestedUrlParts['scheme'].'://'. $requestedUrlParts['host'].
-		($portInRequested ? (':' . $portInRequested) : '').
-		$requestedUrlParts['path']. ($requestedUrlParts['query'] ? ('?'.$requestedUrlParts['query']) : '');
+		($portInRequested ? (':' . $portInRequested) : '') .
+		$requestedUrlParts['path'] .
+		(isset($requestedUrlParts['query']) ? ('?' . $requestedUrlParts['query']) : '');
 	 //# what if scheme is not defined? use user, pass if defined; fragment (hash) is probably not needed
 	 //# better to use some tested methods (http_build_url from PECL>=0.21.0?) – may be copy implementation
 	
