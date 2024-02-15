@@ -1328,7 +1328,7 @@ Options::load();
 
 // choose workingFolder among dataFolders (on any request):
 $requestedFolderName = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
-if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolder)
+if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolderName)
 	; //# notify user somehow!
 $workingFolder = Options::getWorkingFolder();
 
