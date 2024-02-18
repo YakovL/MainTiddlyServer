@@ -1360,7 +1360,7 @@ function getFullWikiLink($nameOrPath) {
 // If this is an AJAX request to save the file, do so, for incremental changes respond 'saved' on success and error on fail
 if(isset($_POST['save']) || isset($_POST['saveChanges']))
 {
-	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
+	$nameOfTwToUpdate = isset($_POST['wiki']) ? $_POST['wiki'] : Options::get('wikiname');
 	if(!isTwLikeInCurrentWorkingFolder($nameOfTwToUpdate)) {
 		http_response_code(404);
 		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
@@ -1392,7 +1392,7 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 // For a backup request, respond with 'success' or a string explaining the problem
 else if(isset($_POST['backupByName']))
 {
-	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
+	$twToBackupFileName = isset($_REQUEST['wiki']) ? $_REQUEST['wiki'] : Options::get('wikiname');
 	if(!isTwLikeInCurrentWorkingFolder($twToBackupFileName)) {
 		http_response_code(404);
 		exit("error: \"$twToBackupFileName\" is not a valid TiddlyWiki in the working folder");
