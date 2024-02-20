@@ -1401,12 +1401,13 @@ else if(isset($_POST['backupByName']))
 
 	// remove chars other than -_.a-zA-Z0-9 from file name
 	$backupFileName = preg_replace("/[^\w-_\.]/", '', $_POST['backupByName']);
-	$requestedBackupSubfolder = $_POST['backupFolder'];
+
 	$defaultTwBackupFolder = "backups";
 	// only allow current folder and direct subfolders
-	if(!$requestedBackupSubfolder) {
+	if(!isset($_POST['backupFolder']) or $_POST['backupFolder'] == '') {
 		$backupSubfolder = $defaultTwBackupFolder;
 	} else {
+		$requestedBackupSubfolder = $_POST['backupFolder'];
 		if(preg_match("/^[\w\.]+$/", $requestedBackupSubfolder) && $requestedBackupSubfolder != '..') {
 			$backupSubfolder = $requestedBackupSubfolder;
 		} else {
