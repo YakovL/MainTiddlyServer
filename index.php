@@ -618,10 +618,10 @@ function lock_and_write_file($path, $content) {
 	$saved = Options::get('skip_file_locking') ?
 		file_put_contents($path, $content) :
 		file_put_contents($path, $content, LOCK_EX);
-	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
-		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
-		"Usually a proper way to fix this is to open the folder in bash, ".
+	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n" .
+		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n" .
+		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW. " .
+		"Usually a proper way to fix this is to open the folder in bash, " .
 		"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
 }
 
