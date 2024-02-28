@@ -1341,9 +1341,12 @@ if($memory_limit)
 	ini_set('memory_limit', $memory_limit);
 
 // calc interface links
+// may give false negatives, see more at https://stackoverflow.com/q/4503135/ if needed
+$isHttps = !(empty($_SERVER['HTTPS'] OR strtolower($_SERVER['HTTPS']) === 'off'));
 $port = $_SERVER['SERVER_PORT'];
 $portSuffix = $port ? (":".$port) : "";
-$baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
+$baselink = ($isHttps ? 'https' : 'http') . '://' .
+	$_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 function getFullWikiLink($nameOrPath) {
