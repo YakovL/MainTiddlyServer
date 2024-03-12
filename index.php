@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.5';
+$version = '1.7.6';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.6
+	+ fixes to remove warnings in PHP8 (see #10)
+	+ a fix to support serving through https
 	1.7.5
 	+ added support of TW 2.10.1 (not using new interfaces yet)
 	+ introduce skip_file_locking
