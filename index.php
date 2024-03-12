@@ -1,6 +1,6 @@
 <?php
 // MainTiddlyServer
-$version = '1.7.5';
+$version = '1.7.6';
 // MIT-licensed (see https://yakovl.github.io/MainTiddlyServer/license.html)
 $debug_mode = false;
 
@@ -116,6 +116,9 @@ You will then be asked to perform some initial configuration, after which you ca
 	
 	(forked from MTS v2.8.1.0, see https://groups.google.com/forum/#!topic/tiddlywiki/25LbvckJ3S8)
 	changes from the original version:
+	1.7.6
+	+ fixes to remove warnings in PHP8 (see #10)
+	+ a fix to support serving through https
 	1.7.5
 	+ added support of TW 2.10.1 (not using new interfaces yet)
 	+ introduce skip_file_locking
@@ -618,10 +621,10 @@ function lock_and_write_file($path, $content) {
 	$saved = Options::get('skip_file_locking') ?
 		file_put_contents($path, $content) :
 		file_put_contents($path, $content, LOCK_EX);
-	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n".
-		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n".
-		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW.".
-		"Usually a proper way to fix this is to open the folder in bash, ".
+	if(!$saved) return "MainTiddlyServer failed to save updated TiddlyWiki.\n" .
+		"Please make sure the containing folder is accessible for writing and the TiddlyWiki can be (over)written.\n" .
+		"Usually this requires that those have owner/group of \"www-data\" and access mode is 7** (e.g. 744) for folder and 6** for TW. " .
+		"Usually a proper way to fix this is to open the folder in bash, " .
 		"add the group (sudo chgrp -R www-data .), and add permissions to it (sudo chmod -R g+rwx .)";
 }
 
@@ -630,6 +633,7 @@ define("DEFAULT_DATAFOLDER_PATH", ".");
 class Options {
 	protected static $optionsFolder;
 	protected static $options;
+	// used to avoid redundant saving
 	protected static $isChanged;
 	public static function init($optionsFolder) {
 		if(self::$optionsFolder !== null) return;
@@ -642,35 +646,42 @@ class Options {
 		$newPath = self::$optionsFolder . "/" . "mts_options.json";
 		$path = file_exists($newPath) ? $newPath : $oldPath;
 
-		$optionsText = lock_and_read_file($path);
-		self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
+		if(file_exists($path)) {
+			$optionsText = lock_and_read_file($path);
+			self::$options = $path == $newPath ? json_decode($optionsText, true) : unserialize($optionsText);
+		}
 
 		// normalize
-		if(!self::$options['dataFolders'])
+		if(!isset(self::$options['dataFolders']))
 			self::$options['dataFolders'] = [];
-		if(!self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME])
+		if(!isset(self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME]))
 			self::$options['dataFolders'][DEFAULT_DATAFOLDER_NAME] = DEFAULT_DATAFOLDER_PATH;
 	}
 	public static function get($optionName) {
 		//# if($optionName == 'dataFolders') ... return copy of options['dataFolders'] so that they cannot be changed
-		return self::$options[$optionName];
+		return isset(self::$options[$optionName]) ?
+			self::$options[$optionName] : null;
 	}
 	public static function set($optionName, $value, $unsetEmpty = false) {
 		if($optionName == 'dataFolders') return;
-		if($value != self::$options[$optionName])
+
+		$oldValue = self::get($optionName);
+		if($value != $oldValue && ($value || $oldValue))
 			self::$isChanged = true;
+
 		if(!$value && $unsetEmpty)
-			unset(self::$options[$optionName]); // https://stackoverflow.com/a/25748033/3995261
+			unset(self::$options[$optionName]);
 		else
 			self::$options[$optionName] = $value;
 	}
 	public static function chooseWorkingFolder($name) {
-		if(self::$options['dataFolders'][$name]) {
+		if(isset(self::$options['dataFolders'][$name])) {
 			self::set('workingFolderName', $name);
 		}
-		$workingFolderName = self::get('workingFolderName');
-		if(!$workingFolderName or !array_key_exists($workingFolderName, self::$options['dataFolders']))
+
+		if(!self::get('workingFolderName') or !self::get('dataFolders'))
 			self::set('workingFolderName', DEFAULT_DATAFOLDER_NAME);
+
 		return self::get('workingFolderName');
 	}
 	public static function getWorkingFolder() {
@@ -678,7 +689,7 @@ class Options {
 	}
 	public static function save() {
 		if(!self::$isChanged) return;
-		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/questions/22208831/json-encode-expects-parameter-2-to-be-long-string-given)
+		// a fallback for PHP below 5.4.0 (see http://stackoverflow.com/q/22208831/3995261)
 		$pretty_print = (JSON_PRETTY_PRINT == "JSON_PRETTY_PRINT") ? 128 : JSON_PRETTY_PRINT;
 		$path = self::$optionsFolder . "/" . "mts_options.json";
 		return lock_and_write_file($path, json_encode(self::$options, $pretty_print));
@@ -696,19 +707,19 @@ function injectJsToWiki($wikiData) {
 
 	return $wikiData;
 }
-function removeInjectedJsFromWiki($content) {
+function removeInjectedJsFromWiki($wikiData) {
 
 	global $injectedJsHelpers;
 
 	$endOfStoreArea = strpos($wikiData, "<!--POST-STOREAREA-->");
 	// we imply that $injectedJsHelpers are either unchanged inside TW html or not present at all (may be so on upgrading)
 	//# try to use  substr_replace  instead (compare times, memory usage)
-	$start = strpos($content, $injectedJsHelpers, $endOfStoreArea);
+	$start = strpos($wikiData, $injectedJsHelpers, $endOfStoreArea);
 	if($start === false) {
-		return $content;
+		return $wikiData;
 	}
 	$end = $start + strlen($injectedJsHelpers);
-	return substr($content, 0, $start) . substr($content, $end);
+	return substr($wikiData, 0, $start) . substr($wikiData, $end);
 }
 function getTwVersion($wikiFileText) {
 
@@ -1087,7 +1098,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 		return false;
 	}
 	$wikiData = lock_and_read_file($wikiPath);
-	
+
 	// if the version isn't supported, show that
 	$versionParts = getTwVersion($wikiData);
 	if(!isSupportedTwVersion($versionParts)) {
@@ -1124,7 +1135,7 @@ function showTW($fullPath = '', $pathToShowOnError = '') {
 	}
 
 	$wikiData = injectJsToWiki($wikiData);
-	
+
 	echo '<!-- ######################### MainTiddlyServer v'.$version.' ############################ -->';
 	print $wikiData;
 	return true;
@@ -1142,6 +1153,8 @@ function showDocPage() {
 // reads TW, applies changes, saves back (TW-format-gnostic)
 // returns 0 on success and error text otherwise (not quite: see //#)
 function updateTW($wikiPath, $changes) {
+
+	global $debug_mode;
 
 	if($changes == new stdClass()) // no changes
 		return 'no changes, nothing to save';
@@ -1209,11 +1222,11 @@ function updateTW($wikiPath, $changes) {
 	foreach($changes->tiddlers as $tiddlerTitle => $tiddlerChange) {
 		if($tiddlerChange == "deleted") {
 			unset($tiddlersMap[$tiddlerTitle]);
-		} else if($tiddlerChange->added) {
+		} else if(isset($tiddlerChange->added)) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->added;
-		} else if($tiddlerChange->changed) {
+		} else if(isset($tiddlerChange->changed)) {
 			$tiddlersMap[$tiddlerTitle] = $tiddlerChange->changed; // substituting
-		} else if($tiddlerChange->renamed) {
+		} else if(isset($tiddlerChange->renamed)) {
 			//# can renaming cause conflicts? should we mark it separately from "changed"?
 			
 			// if implemented, will improve traffic usage and "gittability" (renamed tiddlers won't be shifted to the end)
@@ -1227,12 +1240,12 @@ function updateTW($wikiPath, $changes) {
 	unset($tiddlersMap); // no longer needed, spare memory
 
 	// update title if necessary
-	if($changes->title)
+	if(isset($changes->title))
 		$beforeStorePart = preg_replace('#<title>.*?</title>#s', '<title> '.$changes->title.' </title>', $beforeStorePart);
 	// we use <title> title </title> format (with extra spaces around) since it is used in TW; it doesn't seem to be important
 	
 	// update markup blocks
- 	if($changes->markupBlocks)
+ 	if(isset($changes->markupBlocks))
 		foreach($changes->markupBlocks as $blockName => $blockValue) {
 			$start = "<!--$blockName-START-->";
 			$end   = "<!--$blockName-END-->";
@@ -1304,9 +1317,10 @@ function getImageByUriAndSave($url, $path, $name)
 //	if(!file_exists($path))
 //		return ..;
 //# if name is not given, create a random one (may be use timestamp)
-	if($isBase64)
-		getImageFromBase64AndSave($data, $path.'/', $name);
-	else
+	if($isBase64) {
+		// TODO: $data = calc from $url
+		// getImageFromBase64AndSave($data, $path.'/', $name);
+	} else
 		loadImageByUrlAndSave($url, $path.'/', $name);
 //# return path to created image on success
 };
@@ -1320,7 +1334,7 @@ Options::load();
 
 // choose workingFolder among dataFolders (on any request):
 $requestedFolderName = !empty($_REQUEST['folder']) ? $_REQUEST['folder'] : '';
-if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolder)
+if(Options::chooseWorkingFolder($requestedFolderName) != $requestedFolderName)
 	; //# notify user somehow!
 $workingFolder = Options::getWorkingFolder();
 
@@ -1330,9 +1344,12 @@ if($memory_limit)
 	ini_set('memory_limit', $memory_limit);
 
 // calc interface links
+// may give false negatives, see more at https://stackoverflow.com/q/4503135/ if needed
+$isHttps = !(empty($_SERVER['HTTPS'] OR strtolower($_SERVER['HTTPS']) === 'off'));
 $port = $_SERVER['SERVER_PORT'];
 $portSuffix = $port ? (":".$port) : "";
-$baselink    = 'http://' . $_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
+$baselink = ($isHttps ? 'https' : 'http') . '://' .
+	$_SERVER['SERVER_NAME'] . $portSuffix . $_SERVER['SCRIPT_NAME'];
 $optionsLink = $baselink . '?options';
 $wikisLink   = $baselink . '?wikis';
 function getFullWikiLink($nameOrPath) {
@@ -1349,7 +1366,7 @@ function getFullWikiLink($nameOrPath) {
 // If this is an AJAX request to save the file, do so, for incremental changes respond 'saved' on success and error on fail
 if(isset($_POST['save']) || isset($_POST['saveChanges']))
 {
-	$nameOfTwToUpdate = $_POST['wiki'] ? $_POST['wiki'] : Options::get('wikiname');
+	$nameOfTwToUpdate = isset($_POST['wiki']) ? $_POST['wiki'] : Options::get('wikiname');
 	if(!isTwLikeInCurrentWorkingFolder($nameOfTwToUpdate)) {
 		http_response_code(404);
 		echo "error: \"$nameOfTwToUpdate\" is not a valid TiddlyWiki in the working folder";
@@ -1358,8 +1375,10 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 	$wikiPath = $workingFolder . "/" . $nameOfTwToUpdate;
 
 	// first, backup if required
-	$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
-	if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
+	if(isset($_POST['backupid'])) {
+		$backupId = preg_replace("/[^0-9\.]/", '', $_POST['backupid']);
+		if($backupId) copy($wikiPath, "$wikiPath.$backupId.html");
+	}
 
 	// then save
 	if(isset($_POST['save'])) {
@@ -1379,7 +1398,7 @@ if(isset($_POST['save']) || isset($_POST['saveChanges']))
 // For a backup request, respond with 'success' or a string explaining the problem
 else if(isset($_POST['backupByName']))
 {
-	$twToBackupFileName = $_REQUEST['wiki'] ? $_REQUEST['wiki'] : Options::get('wikiname');
+	$twToBackupFileName = isset($_REQUEST['wiki']) ? $_REQUEST['wiki'] : Options::get('wikiname');
 	if(!isTwLikeInCurrentWorkingFolder($twToBackupFileName)) {
 		http_response_code(404);
 		exit("error: \"$twToBackupFileName\" is not a valid TiddlyWiki in the working folder");
@@ -1388,12 +1407,13 @@ else if(isset($_POST['backupByName']))
 
 	// remove chars other than -_.a-zA-Z0-9 from file name
 	$backupFileName = preg_replace("/[^\w-_\.]/", '', $_POST['backupByName']);
-	$requestedBackupSubfolder = $_POST['backupFolder'];
+
 	$defaultTwBackupFolder = "backups";
 	// only allow current folder and direct subfolders
-	if(!$requestedBackupSubfolder) {
+	if(!isset($_POST['backupFolder']) or $_POST['backupFolder'] == '') {
 		$backupSubfolder = $defaultTwBackupFolder;
 	} else {
+		$requestedBackupSubfolder = $_POST['backupFolder'];
 		if(preg_match("/^[\w\.]+$/", $requestedBackupSubfolder) && $requestedBackupSubfolder != '..') {
 			$backupSubfolder = $requestedBackupSubfolder;
 		} else {
@@ -1419,7 +1439,8 @@ else if(isset($_POST['backupByName']))
 else if(isset($_POST['options']))
 {
 	function setOption($name, $unsetEmpty = false) {
-		Options::set($name, $_POST[$name], $unsetEmpty);
+		$value = isset($_POST[$name]) ? $_POST[$name] : null;
+		Options::set($name, $value, $unsetEmpty);
 	}
 
 	// $_REQUEST['folder'] is processed "globally" (see above)
@@ -1565,7 +1586,7 @@ else if(isset($_REQUEST['proxy_to']))
 	  relative url			  =		  =						 ...
 	  same folder			  =		  =						  =
 	*/
-	$portInRequested = $requestedUrlParts['port'];
+	$portInRequested = isset($requestedUrlParts['port']) ? $requestedUrlParts['port'] : null;
 	$isSameDomain = ($requestedUrlParts['host'] == $mtsHost) && (!$portInRequested || ($portInRequested == $mtsPort));
 	$isSameFolder = $isSameDomain && ($requestedFolder == $mtsFolderUrl); //# test (can trailing / be omitted?)
 	$isRelativePath = strpos($requestedFolder, $mtsFolderUrl) === 0;
@@ -1631,8 +1652,9 @@ else if(isset($_REQUEST['proxy_to']))
 		$initialRequestedUrl = $requestedUrl;
 	}
 	$requestedUrl = $requestedUrlParts['scheme'].'://'. $requestedUrlParts['host'].
-		($requestedUrlParts['port'] ? (':'.$requestedUrlParts['port']) : '').
-		$requestedUrlParts['path']. ($requestedUrlParts['query'] ? ('?'.$requestedUrlParts['query']) : '');
+		($portInRequested ? (':' . $portInRequested) : '') .
+		$requestedUrlParts['path'] .
+		(isset($requestedUrlParts['query']) ? ('?' . $requestedUrlParts['query']) : '');
 	 //# what if scheme is not defined? use user, pass if defined; fragment (hash) is probably not needed
 	 //# better to use some tested methods (http_build_url from PECL>=0.21.0?) – may be copy implementation
 	
